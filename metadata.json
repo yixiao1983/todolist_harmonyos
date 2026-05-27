@@ -1,0 +1,6 @@
+{
+  "name": "HarmonyOS TodoList",
+  "description": "A high-fidelity HarmonyOS NEXT inspired TodoList, Pomodoro Focus, and Four-Quadrant productivity application with live widgets and real-time white noise synthesis.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
