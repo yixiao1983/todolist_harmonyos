@@ -23,6 +23,11 @@ export interface Habit {
   title: string;
   createdAt: string;
   completedDates: string[]; // dates of completion, e.g. ["2026-05-31"]
+  periodType: 'DAILY' | 'WEEKLY' | 'MONTHLY'; // 循环周期: 天, 周, 月
+  startDate: string; // 周期开始时间 YYYY-MM-DD
+  endDate: string; // 周期结束时间 YYYY-MM-DD
+  weeklyDays?: number[]; // 1-7 for Monday-Sunday
+  monthlyDays?: number[]; // 1-31 for days of month
 }
 
 export interface QuadrantCategory {

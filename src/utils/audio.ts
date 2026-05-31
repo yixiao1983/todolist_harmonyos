@@ -303,4 +303,30 @@ export class FocusAudioSynthesizer {
       osc.stop(this.ctx.currentTime + 0.6);
     } catch (e) {}
   }
+
+  // Synthesize a beautiful success arpeggio chime when completing elements or templates
+  public synthesizeSuccessChime() {
+    this.initContext();
+    if (!this.ctx) return;
+    try {
+      const now = this.ctx.currentTime;
+      // Elegant rising major chord (C5, E5, G5, C6) for a classic rewarding feel
+      const notes = [523.25, 659.25, 783.99, 1046.50];
+      notes.forEach((freq, index) => {
+        const osc = this.ctx!.createOscillator();
+        const gain = this.ctx!.createGain();
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(freq, now + index * 0.08);
+
+        gain.gain.setValueAtTime(0.001, now + index * 0.08);
+        gain.gain.exponentialRampToValueAtTime(0.12, now + index * 0.08 + 0.04);
+        gain.gain.exponentialRampToValueAtTime(0.001, now + index * 0.08 + 0.35);
+
+        osc.connect(gain);
+        gain.connect(this.ctx!.destination);
+        osc.start(now + index * 0.08);
+        osc.stop(now + index * 0.08 + 0.4);
+      });
+    } catch (e) {}
+  }
 }

@@ -110,9 +110,9 @@ const INITIAL_TASKS: Task[] = [
 ];
 
 const INITIAL_HABITS: Habit[] = [
-  { id: 'h-1', title: '每日晨跑 5 公里', createdAt: new Date().toISOString(), completedDates: [] },
-  { id: 'h-2', title: '阅读一章技术文档或书籍', createdAt: new Date().toISOString(), completedDates: [] },
-  { id: 'h-3', title: '保持 25 分钟脑部番茄专注', createdAt: new Date().toISOString(), completedDates: [new Date().toISOString().split('T')[0]] }
+  { id: 'h-1', title: '每日晨跑 5 公里', createdAt: new Date().toISOString(), completedDates: [], periodType: 'DAILY', startDate: new Date().toISOString().split('T')[0], endDate: '2026-12-31' },
+  { id: 'h-2', title: '阅读一章技术文档或书籍', createdAt: new Date().toISOString(), completedDates: [], periodType: 'DAILY', startDate: new Date().toISOString().split('T')[0], endDate: '2026-12-31' },
+  { id: 'h-3', title: '保持 25 分钟脑部番茄专注', createdAt: new Date().toISOString(), completedDates: [new Date().toISOString().split('T')[0]], periodType: 'DAILY', startDate: new Date().toISOString().split('T')[0], endDate: '2026-12-31' }
 ];
 
 const DEFAULT_QUADRANTS: QuadrantCategory[] = [
@@ -212,8 +212,34 @@ export default function App() {
 
   // Navigation tabs and layout states
   const [isHomeScreen, setIsHomeScreen] = useState(false);
-  const [activeTab, setActiveTab] = useState<'LIST' | 'QUADRANT' | 'CALENDAR' | 'POMODORO' | 'TEMPLATES'>('LIST');
+  const [activeTab, setActiveTab] = useState<'LIST' | 'HABIT' | 'QUADRANT' | 'CALENDAR' | 'POMODORO' | 'TEMPLATES'>('LIST');
   const [selectedDate, setSelectedDate] = useState(() => new Date().toISOString().split('T')[0]);
+
+  const [showHabitsTab, setShowHabitsTab] = useState<boolean>(() => {
+    return localStorage.getItem('hm_show_habits_tab') !== 'false';
+  });
+  const [showQuadrantsTab, setShowQuadrantsTab] = useState<boolean>(() => {
+    return localStorage.getItem('hm_show_quadrants_tab') !== 'false';
+  });
+  const [showPomodoroTab, setShowPomodoroTab] = useState<boolean>(() => {
+    return localStorage.getItem('hm_show_pomodoro_tab') !== 'false';
+  });
+  const [isFiltersExpanded, setIsFiltersExpanded] = useState<boolean>(false);
+
+  // Focus Custom Settings State
+  const [customFocusTitle, setCustomFocusTitle] = useState('');
+
+  // Habits form states for direct habit custom creation in Menu
+  const [newHabitTitleVal, setNewHabitTitleVal] = useState('');
+  const [newHabitPeriod, setNewHabitPeriod] = useState<'DAILY' | 'WEEKLY' | 'MONTHLY'>('DAILY');
+  const [newHabitStart, setNewHabitStart] = useState(() => new Date().toISOString().split('T')[0]);
+  const [newHabitEnd, setNewHabitEnd] = useState(() => {
+    const d = new Date();
+    d.setMonth(d.getMonth() + 3); // 3 months default
+    return d.toISOString().split('T')[0];
+  });
+  const [selectedWeeklyDays, setSelectedWeeklyDays] = useState<number[]>([]);
+  const [selectedMonthlyDays, setSelectedMonthlyDays] = useState<number[]>([]);
 
   // Tasks and Templates Persistence
   const [tasks, setTasks] = useState<Task[]>([]);
@@ -249,6 +275,8 @@ export default function App() {
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
   const [editingTask, setEditingTask] = useState<Task | null>(null);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  const [isTemplateModalOpen, setIsTemplateModalOpen] = useState(false);
+  const [isAddHabitModalOpen, setIsAddHabitModalOpen] = useState(false);
 
   // Initialize singular audio synthesizer ref to prevent duplicated sound assets
   const audioSynthRef = useRef<FocusAudioSynthesizer | null>(null);
@@ -517,7 +545,14 @@ export default function App() {
       id: 'habit-' + Date.now(),
       title: newHabitTitle.trim(),
       createdAt: new Date().toISOString(),
-      completedDates: []
+      completedDates: [],
+      periodType: 'DAILY',
+      startDate: new Date().toISOString().split('T')[0],
+      endDate: (() => {
+        const d = new Date();
+        d.setMonth(d.getMonth() + 3);
+        return d.toISOString().split('T')[0];
+      })()
     };
     const updated = [...habits, newHabit];
     handleSaveHabits(updated);
@@ -627,11 +662,31 @@ export default function App() {
     }
 
     return (
-      <div
+      <motion.div
         id={`task-item-${t.id}`}
         key={t.id}
+        layout="position"
+        initial={{ opacity: 0, y: 12, scale: 0.97 }}
+        animate={{ 
+          opacity: t.isCompleted ? 0.6 : 1, 
+          scale: t.isCompleted ? 0.98 : 1,
+          y: 0 
+        }}
+        exit={{ 
+          opacity: 0, 
+          scale: 0.92, 
+          y: -10,
+          transition: { duration: 0.2, ease: "easeOut" } 
+        }}
+        transition={{ 
+          type: "spring", 
+          stiffness: 400, 
+          damping: 26, 
+          mass: 0.6,
+          opacity: { duration: 0.2 }
+        }}
         className={`group/task relative bg-white dark:bg-[#1C1C1E] rounded-3xl border border-gray-150/40 dark:border-zinc-800 p-4 transition-all shadow-2xs ${borderClass} ${
-          t.isCompleted ? 'bg-gray-50/70 border-l-gray-300/40 opacity-70' : ''
+          t.isCompleted ? 'bg-gray-50/70 border-l-gray-300/40' : ''
         }`}
       >
         <div className="flex items-start justify-between gap-3">
@@ -662,31 +717,6 @@ export default function App() {
                   </span>
                 )}
               </h3>
-
-              {/* Metadatas flow bottom */}
-              <div className="flex flex-wrap items-center gap-1.5 mt-2">
-                <span className="text-[8.5px] bg-gray-100 dark:bg-zinc-800/80 text-gray-500 dark:text-zinc-400 px-2.5 py-0.2 rounded-full font-bold">
-                  第 {t.quadrant} 象限
-                </span>
-                <span className={`text-[8.5px] px-2.5 py-0.2 rounded-full font-semibold ${chipColor}`}>
-                  {t.priority} 优先级
-                </span>
-                {t.tags.map((tag, i) => (
-                  <span key={i} className="text-[9px] text-gray-400 dark:text-zinc-600 font-mono">
-                    #{tag}
-                  </span>
-                ))}
-                {t.focusMinutes > 0 && (
-                  <span className="text-[8.5px] bg-purple-50 dark:bg-purple-950/20 text-purple-600 dark:text-purple-400 px-2 py-0.2 rounded-full font-extrabold">
-                    🎯 已专注 {t.focusMinutes} 分钟
-                  </span>
-                )}
-                {t.dueDate && (
-                  <span className="text-[8.5px] bg-indigo-50 dark:bg-[#2C2C2E] text-indigo-500 dark:text-indigo-400 px-2 py-0.2 rounded-full font-semibold">
-                    📅 {t.dueDate}
-                  </span>
-                )}
-              </div>
 
               {isBlocked && (
                 <p className="text-[10px] text-amber-600 mt-1.5 leading-normal font-medium flex items-center gap-1 bg-amber-50/50 p-1 rounded-lg">
@@ -725,13 +755,40 @@ export default function App() {
           </div>
         </div>
 
+        {/* Metadatas flow bottom */}
+        <div className="flex flex-wrap items-center gap-1.5 mt-2.5 pt-2 border-t border-gray-100/50 dark:border-zinc-800/20 w-full">
+          {showQuadrantsTab && (
+            <span className="text-[8.5px] bg-gray-100 dark:bg-zinc-800/80 text-gray-500 dark:text-zinc-400 px-2.5 py-0.2 rounded-full font-bold">
+              第 {t.quadrant} 象限
+            </span>
+          )}
+          <span className={`text-[8.5px] px-2.5 py-0.2 rounded-full font-semibold ${chipColor}`}>
+            {t.priority} 优先级
+          </span>
+          {t.tags.map((tag, i) => (
+            <span key={i} className="text-[9px] text-gray-400 dark:text-zinc-650 font-mono">
+              #{tag}
+            </span>
+          ))}
+          {t.focusMinutes > 0 && (
+            <span className="text-[8.5px] bg-purple-50 dark:bg-purple-950/20 text-purple-600 dark:text-purple-400 px-2 py-0.2 rounded-full font-extrabold">
+              🎯 已专注 {t.focusMinutes} 分钟
+            </span>
+          )}
+          {t.dueDate && (
+            <span className="text-[8.5px] bg-indigo-50 dark:bg-[#2C2C2E] text-indigo-500 dark:text-indigo-400 px-2 py-0.2 rounded-full font-semibold">
+              📅 {t.dueDate}
+            </span>
+          )}
+        </div>
+
         {/* Full-width Subtasks Completion box */}
         {t.subtasks && t.subtasks.length > 0 && (
           <div className="mt-3.5 space-y-2 bg-gray-50/70 dark:bg-[#2C2C2E]/40 p-3 rounded-2xl border border-gray-150/10 dark:border-zinc-800 w-full animate-fade-in">
             <div className="flex justify-between items-center text-[9px] text-gray-400 dark:text-zinc-500 font-bold mb-1 pl-0.5">
               <span>子步骤拆解 ({t.subtasks.filter(s => s.isCompleted).length} / {t.subtasks.length} 已完成)</span>
             </div>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-1.5">
+            <div className="space-y-1.5 w-full">
               {t.subtasks.map(sub => (
                 <div 
                   key={sub.id} 
@@ -759,7 +816,7 @@ export default function App() {
             </div>
           </div>
         )}
-      </div>
+      </motion.div>
     );
   };
 
@@ -838,11 +895,12 @@ export default function App() {
     setActiveTab('POMODORO');
   };
 
-  const handleStartTimer = (duration: number, mode: FocusMode, taskId?: string) => {
+  const handleStartTimer = (duration: number, mode: FocusMode, taskId?: string, customTitle?: string) => {
     setFocusMode(mode);
     setTotalDuration(duration);
     setTimeRemaining(duration);
     setActiveTaskId(taskId);
+    setCustomFocusTitle(customTitle || '');
     setIsRunning(true);
     setIsPaused(false);
   };
@@ -979,7 +1037,7 @@ export default function App() {
         isTimerActive={isRunning}
         timerLabel={formatTimerLabel()}
         isPaused={isPaused}
-        timerTitle={tasks.find(t => t.id === activeTaskId)?.title || '极简专注'}
+        timerTitle={tasks.find(t => t.id === activeTaskId)?.title || customFocusTitle || '极简专注'}
         onPauseToggle={handlePauseToggle}
         onStopTimer={handleStopTimer}
         isHomeScreen={isHomeScreen}
@@ -1024,15 +1082,24 @@ export default function App() {
                 <div className="flex items-center gap-2">
                   <span className="text-[10px] text-gray-400 font-extrabold hidden sm:inline">2026年5月27日 星期三</span>
                   
+                  {/* Template Import Button */}
+                  <button
+                    id="btn-header-templates-toggle"
+                    onClick={() => setIsTemplateModalOpen(true)}
+                    title="快捷模板快速导入"
+                    className="w-8 h-8 text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-500/10 hover:bg-emerald-100 dark:hover:bg-[#153e20] rounded-xl transition-all border border-emerald-500/10 flex items-center justify-center cursor-pointer"
+                  >
+                    <Bookmark size={14} className="text-emerald-600 dark:text-emerald-400" />
+                  </button>
+
                   {/* Settings Icon integrating templates & dark mode style switches */}
                   <button
                     id="btn-header-settings-toggle"
                     onClick={() => setIsSettingsOpen(true)}
-                    title="系统设置与项目模版导入"
-                    className="p-1 px-2.5 text-[10.5px] font-bold text-[#007DFF] bg-[#E8F3FF] dark:bg-[#007DFF]/10 hover:bg-blue-100 rounded-xl transition-all border border-[#007DFF]/10 flex items-center gap-1 cursor-pointer"
+                    title="系统设置"
+                    className="w-8 h-8 text-[#007DFF] bg-[#E8F3FF] dark:bg-[#007DFF]/10 hover:bg-blue-100 rounded-xl transition-all border border-[#007DFF]/10 flex items-center justify-center cursor-pointer"
                   >
-                    <Settings size={12} className="animate-spin-slow text-[#007DFF]" />
-                    <span>设置</span>
+                    <Settings size={14} className="animate-spin-slow text-[#007DFF]" />
                   </button>
                 </div>
               </div>
@@ -1101,39 +1168,6 @@ export default function App() {
                   {activeTab === 'LIST' && (
                     <div id="view-tab-list" className="space-y-4 pb-12">
                       
-                      {/* Bento Highlight Metrics cards */}
-                      <div className="grid grid-cols-2 gap-2.5">
-                        <div className="bg-white/80 dark:bg-zinc-900/40 p-3 rounded-2xl border border-gray-150/10 dark:border-zinc-800/20 backdrop-blur-md flex flex-col justify-between h-[64px]">
-                          <div className="flex items-center justify-between">
-                            <span className="text-[9.5px] font-extrabold text-[#007DFF]">今日完结率</span>
-                            <Sparkles size={11} className="text-[#007DFF]" />
-                          </div>
-                          <div className="flex items-end justify-[#007DFF] justify-between">
-                            <span className="text-sm font-black text-gray-950 dark:text-gray-50 font-sans tracking-tight">
-                              {tasks.length > 0 ? Math.round((tasks.filter(t => t.isCompleted).length / tasks.length) * 100) : 0}%
-                            </span>
-                            <span className="text-[8.5px] text-gray-400 font-bold">
-                              {tasks.filter(t => t.isCompleted).length} / {tasks.length} 已清
-                            </span>
-                          </div>
-                        </div>
-
-                        <div className="bg-white/80 dark:bg-zinc-900/40 p-3 rounded-2xl border border-gray-150/10 dark:border-zinc-800/20 backdrop-blur-md flex flex-col justify-between h-[64px]">
-                          <div className="flex items-center justify-between">
-                            <span className="text-[9.5px] font-extrabold text-[#007DFF]">专注统计</span>
-                            <Clock3 size={11} className="text-[#007DFF]" />
-                          </div>
-                          <div className="flex items-end justify-between">
-                            <span className="text-sm font-black text-gray-950 dark:text-gray-50 font-sans tracking-tight">
-                              {tasks.reduce((sum, t) => sum + (t.focusMinutes || 0), 0)} min
-                            </span>
-                            <span className="text-[8.5px] text-gray-400 font-bold animate-pulse">
-                              累计番茄
-                            </span>
-                          </div>
-                        </div>
-                      </div>
-
                       {/* Create Task Button card */}
                       <button
                         id="btn-trigger-add-task"
@@ -1144,85 +1178,110 @@ export default function App() {
                         <span className="text-[11px] font-bold leading-none">快速添加待办事项</span>
                       </button>
 
-                      {/* Interactive Sorting & Filtering Dropdowns */}
-                      <div id="task-list-controls" className="bg-[#FAFAFB] dark:bg-zinc-900/40 border border-gray-150/15 dark:border-zinc-800/15 rounded-3xl p-3 flex flex-col gap-2.5 shadow-3xs">
-                        <div className="flex items-center justify-between">
-                          <span className="text-[9.5px] font-black tracking-widest text-[#007DFF] uppercase flex items-center gap-1">
-                            <SlidersHorizontal size={10} />
-                            筛选与视图排序
-                          </span>
+                      {/* Toggle Filters & Sorting */}
+                      <div className="flex items-center justify-between px-1">
+                        <button
+                          id="btn-toggle-filters-panel"
+                          onClick={() => setIsFiltersExpanded(!isFiltersExpanded)}
+                          className="flex items-center gap-1.5 text-[11px] font-bold text-gray-500 hover:text-[#007DFF] transition-colors cursor-pointer"
+                        >
+                          <SlidersHorizontal size={12} className={isFiltersExpanded ? 'text-[#007DFF]' : 'text-gray-400'} />
+                          <span>{isFiltersExpanded ? '收起 筛选与排序面板 ▴' : '展开 筛选与排序面板 ▾'}</span>
                           {(sortBy !== 'DEFAULT' || filterPriority !== 'ALL' || filterDueDate !== 'ALL') && (
-                            <button
-                              id="btn-clear-filters"
-                              onClick={() => {
-                                setSortBy('DEFAULT');
-                                setFilterPriority('ALL');
-                                setFilterDueDate('ALL');
-                              }}
-                              className="text-[9.5px] font-bold text-gray-400 hover:text-rose-500 hover:underline transition-colors cursor-pointer flex items-center gap-0.5"
-                            >
-                              <span>重置筛选条件</span>
-                            </button>
+                            <span className="w-1.5 h-1.5 rounded-full bg-[#007DFF]" />
                           )}
-                        </div>
-
-                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
-                          {/* Sort Selector */}
-                          <div className="flex flex-col gap-1.5">
-                            <label className="text-[8.5px] font-extrabold text-gray-400 dark:text-zinc-500 uppercase flex items-center gap-0.5 pl-0.5">
-                              <ArrowUpDown size={8} />
-                              排序规则
-                            </label>
-                            <select
-                              id="select-sort-by"
-                              value={sortBy}
-                              onChange={(e) => setSortBy(e.target.value as any)}
-                              className="w-full bg-white dark:bg-[#252529] border border-gray-150/30 dark:border-zinc-800 rounded-xl p-1.5 px-2 text-[10px] font-bold text-gray-700 dark:text-gray-300 focus:outline-none focus:ring-1 focus:ring-[#007DFF]/20"
-                            >
-                              <option value="DEFAULT">默认排序 (创建时间)</option>
-                              <option value="PRIORITY_DESC">按优先级 (高 → 低)</option>
-                              <option value="PRIORITY_ASC">按优先级 (低 → 高)</option>
-                              <option value="DUE_DATE_ASC">截止时间 (最接近优先)</option>
-                              <option value="DUE_DATE_DESC">截止时间 (最晚优先)</option>
-                            </select>
-                          </div>
-
-                          {/* Priority Filter */}
-                          <div className="flex flex-col gap-1.5">
-                            <label className="text-[8.5px] font-extrabold text-gray-400 dark:text-zinc-500 uppercase pl-0.5 animate-pulse">
-                              优先级过滤
-                            </label>
-                            <select
-                              id="select-filter-priority"
-                              value={filterPriority}
-                              onChange={(e) => setFilterPriority(e.target.value as any)}
-                              className="w-full bg-white dark:bg-[#252529] border border-gray-150/30 dark:border-zinc-800 rounded-xl p-1.5 px-2 text-[10px] font-bold text-gray-700 dark:text-gray-300 focus:outline-none focus:ring-1 focus:ring-[#007DFF]/20"
-                            >
-                              <option value="ALL">全部优先级</option>
-                              <option value="HIGH">🔴 高优先级</option>
-                              <option value="MEDIUM">🟡 中优先级</option>
-                              <option value="LOW">🔵 低优先级</option>
-                            </select>
-                          </div>
-
-                          {/* Due Date Filter */}
-                          <div className="flex flex-col gap-1.5">
-                            <label className="text-[8.5px] font-extrabold text-gray-400 dark:text-zinc-500 uppercase pl-0.5">
-                              截止日期筛选
-                            </label>
-                            <select
-                              id="select-filter-due-date"
-                              value={filterDueDate}
-                              onChange={(e) => setFilterDueDate(e.target.value as any)}
-                              className="w-full bg-white dark:bg-[#252529] border border-gray-150/30 dark:border-zinc-800 rounded-xl p-1.5 px-2 text-[10px] font-bold text-gray-700 dark:text-gray-300 focus:outline-none focus:ring-1 focus:ring-[#007DFF]/20"
-                            >
-                              <option value="ALL">全部截止日</option>
-                              <option value="HAS_DUE_DATE">📅 仅含截止时间</option>
-                              <option value="NO_DUE_DATE">⚪仅无截止时间</option>
-                            </select>
-                          </div>
-                        </div>
+                        </button>
                       </div>
+
+                      {/* Interactive Sorting & Filtering Dropdowns */}
+                      <AnimatePresence>
+                        {isFiltersExpanded && (
+                          <motion.div
+                            id="task-list-controls"
+                            initial={{ height: 0, opacity: 0 }}
+                            animate={{ height: 'auto', opacity: 1 }}
+                            exit={{ height: 0, opacity: 0 }}
+                            className="bg-[#FAFAFB] dark:bg-zinc-900/40 border border-gray-150/15 dark:border-zinc-800/15 rounded-3xl p-3 flex flex-col gap-2.5 shadow-3xs overflow-hidden"
+                          >
+                            <div className="flex items-center justify-between">
+                              <span className="text-[9.5px] font-black tracking-widest text-[#007DFF] uppercase flex items-center gap-1">
+                                <SlidersHorizontal size={10} />
+                                筛选与视图排序
+                              </span>
+                              {(sortBy !== 'DEFAULT' || filterPriority !== 'ALL' || filterDueDate !== 'ALL') && (
+                                <button
+                                  id="btn-clear-filters"
+                                  onClick={() => {
+                                    setSortBy('DEFAULT');
+                                    setFilterPriority('ALL');
+                                    setFilterDueDate('ALL');
+                                  }}
+                                  className="text-[9.5px] font-bold text-gray-400 hover:text-rose-500 hover:underline transition-colors cursor-pointer flex items-center gap-0.5"
+                                >
+                                  <span>重置筛选条件</span>
+                                </button>
+                              )}
+                            </div>
+
+                            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                              {/* Sort Selector */}
+                              <div className="flex flex-col gap-1.5">
+                                <label className="text-[8.5px] font-extrabold text-gray-400 dark:text-zinc-500 uppercase flex items-center gap-0.5 pl-0.5">
+                                  <ArrowUpDown size={8} />
+                                  排序规则
+                                </label>
+                                <select
+                                  id="select-sort-by"
+                                  value={sortBy}
+                                  onChange={(e) => setSortBy(e.target.value as any)}
+                                  className="w-full bg-white dark:bg-[#252529] border border-gray-150/30 dark:border-zinc-800 rounded-xl p-1.5 px-2 text-[10px] font-bold text-gray-700 dark:text-gray-300 focus:outline-none focus:ring-1 focus:ring-[#007DFF]/20"
+                                >
+                                  <option value="DEFAULT">默认排序 (创建时间)</option>
+                                  <option value="PRIORITY_DESC">按优先级 (高 → 低)</option>
+                                  <option value="PRIORITY_ASC">按优先级 (低 → 高)</option>
+                                  <option value="DUE_DATE_ASC">截止时间 (最接近优先)</option>
+                                  <option value="DUE_DATE_DESC">截止时间 (最晚优先)</option>
+                                </select>
+                              </div>
+
+                              {/* Priority Filter */}
+                              <div className="flex flex-col gap-1.5">
+                                <label className="text-[8.5px] font-extrabold text-gray-400 dark:text-zinc-500 uppercase pl-0.5">
+                                  优先级过滤
+                                </label>
+                                <select
+                                  id="select-filter-priority"
+                                  value={filterPriority}
+                                  onChange={(e) => setFilterPriority(e.target.value as any)}
+                                  className="w-full bg-white dark:bg-[#252529] border border-gray-150/30 dark:border-zinc-800 rounded-xl p-1.5 px-2 text-[10px] font-bold text-gray-700 dark:text-gray-300 focus:outline-none focus:ring-1 focus:ring-[#007DFF]/20"
+                                >
+                                  <option value="ALL">全部优先级</option>
+                                  <option value="HIGH">🔴 高优先级</option>
+                                  <option value="MEDIUM">🟡 中优先级</option>
+                                  <option value="LOW">🔵 低优先级</option>
+                                </select>
+                              </div>
+
+                              {/* Due Date Filter */}
+                              <div className="flex flex-col gap-1.5">
+                                <label className="text-[8.5px] font-extrabold text-gray-400 dark:text-zinc-500 uppercase pl-0.5">
+                                  截止日期筛选
+                                </label>
+                                <select
+                                  id="select-filter-due-date"
+                                  value={filterDueDate}
+                                  onChange={(e) => setFilterDueDate(e.target.value as any)}
+                                  className="w-full bg-white dark:bg-[#252529] border border-gray-150/30 dark:border-zinc-800 rounded-xl p-1.5 px-2 text-[10px] font-bold text-gray-700 dark:text-gray-300 focus:outline-none focus:ring-1 focus:ring-[#007DFF]/20"
+                                >
+                                  <option value="ALL">全部截止日</option>
+                                  <option value="HAS_DUE_DATE">📅 仅含截止时间</option>
+                                  <option value="NO_DUE_DATE">⚪ 仅无截止时间</option>
+                                </select>
+                              </div>
+                            </div>
+                          </motion.div>
+                        )}
+                      </AnimatePresence>
 
                       {/* --- Section 1: 已过期未完成的任务列表 (Red Accent) --- */}
                       {overdueTasks.length > 0 && (
@@ -1232,37 +1291,41 @@ export default function App() {
                             <h4 className="text-[10px] font-extrabold text-rose-500 uppercase tracking-widest">已过期未完成 ({overdueTasks.length})</h4>
                           </div>
                           <div className="space-y-2.5">
-                            {overdueTasks.map(renderTaskCard)}
+                            <AnimatePresence mode="popLayout">
+                              {overdueTasks.map(renderTaskCard)}
+                            </AnimatePresence>
                           </div>
                         </div>
                       )}
 
-                      {/* --- Section 2: 当日任务列表 (Blue Accent) --- */}
+                       {/* --- Section 2: 当日任务列表 (Blue Accent) --- */}
                       <div className="space-y-2">
                         <div className="flex items-center gap-1.5 pl-1">
-                          <span className="w-1.5 h-1.5 rounded-full bg-[#007DFF] animate-ping" />
-                          <h4 className="text-[10px] font-extrabold text-gray-800 dark:text-gray-200 uppercase tracking-widest">今日聚焦待办 ({todayTasks.length})</h4>
+                          <CheckCircle2 className="text-[#007DFF]" size={11} />
+                          <h4 className="text-[10px] font-extrabold text-[#007DFF] uppercase tracking-widest">今日安排任务 ({todayTasks.length})</h4>
                         </div>
                         {todayTasks.length === 0 ? (
-                          <div className="p-4 bg-white/40 dark:bg-zinc-805/20 rounded-2xl border border-gray-150/10 dark:border-zinc-800 text-center text-gray-400 dark:text-zinc-600 font-medium text-[10px]">
-                            今天没有安排任务，点击上方按钮注入新待办
+                          <div className="p-4 bg-white/40 dark:bg-zinc-805/20 rounded-2xl border border-gray-150/10 dark:border-zinc-800 text-center text-gray-400 dark:text-zinc-650 text-[10px] font-semibold">
+                            今日无代办安排（好好休息，或者添加新安排吧！）
                           </div>
                         ) : (
                           <div className="space-y-2.5">
-                            {todayTasks.map(renderTaskCard)}
+                            <AnimatePresence mode="popLayout">
+                              {todayTasks.map(renderTaskCard)}
+                            </AnimatePresence>
                           </div>
                         )}
                       </div>
 
-                      {/* --- Section 3: 习惯列表 (Green Accent) --- */}
+                      {/* --- Section 3: 每日习惯打卡追踪 (Orange Accent) --- */}
                       <div className="space-y-2">
                         <div className="flex items-center gap-1.5 pl-1">
-                          <RefreshCw size={11} className="text-emerald-500 animate-spin-slow" />
-                          <h4 className="text-[10px] font-extrabold text-emerald-600 dark:text-emerald-400 uppercase tracking-widest">每日习惯习惯对齐 ({filteredHabits.filter(h => h.completedDates.includes(todayStr)).length} / {filteredHabits.length})</h4>
+                          <Flame className="text-orange-500 animate-pulse" size={11} />
+                          <h4 className="text-[10px] font-extrabold text-orange-500 uppercase tracking-widest">今日自律追踪 ({filteredHabits.filter(h => !h.completedDates.includes(todayStr)).length} 待办)</h4>
                         </div>
                         {filteredHabits.length === 0 ? (
                           <div className="p-4 bg-white/40 dark:bg-zinc-805/20 rounded-2xl border border-gray-150/10 dark:border-zinc-800 text-center text-gray-400 dark:text-zinc-650 text-[10px] font-medium leading-relaxed">
-                            暂列无习惯。您可以在右上方【偏好设置】中添加或去除当前习惯库
+                            暂无习惯。您可以在下方或【习惯】看板配置每日计划
                           </div>
                         ) : (
                           <div className="grid grid-cols-1 gap-2">
@@ -1270,14 +1333,14 @@ export default function App() {
                               const isCompletedToday = h.completedDates.includes(todayStr);
                               return (
                                 <div key={h.id} className="flex items-center justify-between p-3 bg-white dark:bg-[#1C1C1E] rounded-2xl border border-gray-150/40 dark:border-zinc-800 hover:bg-gray-50/50 dark:hover:bg-zinc-800/40 transition-all shadow-3xs">
-                                  <div className="flex items-center gap-3">
+                                  <div className="flex items-center gap-3 bg-transparent text-left">
                                     <button
                                       id={`btn-habitcheck-${h.id}`}
                                       onClick={() => handleToggleHabitToday(h.id)}
                                       className="cursor-pointer transition-all active:scale-90"
                                     >
                                       {isCompletedToday ? (
-                                        <CheckCircle2 size={16} className="fill-emerald-55 text-emerald-600 dark:fill-emerald-950/20" />
+                                        <CheckCircle2 size={16} className="fill-emerald-50 text-emerald-600 dark:fill-emerald-950/20" />
                                       ) : (
                                         <Circle size={16} className="text-gray-350 dark:text-zinc-600 hover:text-gray-500" />
                                       )}
@@ -1286,10 +1349,9 @@ export default function App() {
                                       {h.title}
                                     </span>
                                   </div>
-                                  
-                                  <div className="flex items-center gap-2">
-                                    <span className="text-[8.5px] bg-emerald-50 dark:bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 px-2 py-0.5 rounded-full font-extrabold">
-                                      🔥 累计已打卡 {h.completedDates.length} 天
+                                  <div className="flex items-center gap-2 bg-transparent">
+                                    <span className="text-[8.5px] bg-emerald-50 dark:bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 px-2 py-0.5 rounded-full font-bold">
+                                      🔥 累计 {h.completedDates.length} 天
                                     </span>
                                   </div>
                                 </div>
@@ -1302,20 +1364,179 @@ export default function App() {
                       {/* --- Section 4: 其他未来时间的任务列表 (Purple Accent) --- */}
                       <div className="space-y-2">
                         <div className="flex items-center gap-1.5 pl-1">
-                          <FolderOpen size={11} className="text-indigo-505 text-indigo-505 text-indigo-500" />
-                          <h4 className="text-[10px] font-extrabold text-indigo-650 dark:text-indigo-400 uppercase tracking-widest">后续安排任务 ({futureTasks.length})</h4>
+                          <FolderOpen size={11} className="text-indigo-500 animate-pulse" />
+                          <h4 className="text-[10px] font-extrabold text-indigo-650 dark:text-indigo-400 uppercase tracking-widest font-sans">后续安排任务 ({futureTasks.length})</h4>
                         </div>
                         {futureTasks.length === 0 ? (
-                          <div className="p-4 bg-white/40 dark:bg-zinc-805/20 rounded-2xl border border-gray-150/10 dark:border-zinc-800 text-center text-gray-400 dark:text-zinc-600 font-medium text-[10px]">
+                          <div className="p-4 bg-white/40 dark:bg-zinc-805/20 rounded-2xl border border-gray-150/10 dark:border-zinc-800 text-center text-gray-400 dark:text-zinc-650 text-[10px] font-semibold">
                             后续无多余时间代办安排
                           </div>
                         ) : (
                           <div className="space-y-2.5">
-                            {futureTasks.map(renderTaskCard)}
+                            <AnimatePresence mode="popLayout">
+                              {futureTasks.map(renderTaskCard)}
+                            </AnimatePresence>
                           </div>
                         )}
                       </div>
 
+                    </div>
+                  )}
+
+                  {/* TAB 1.5: HABITS养成中心 */}
+                  {activeTab === 'HABIT' && (
+                    <div id="view-tab-habit" className="space-y-4 pb-12 animate-fade-in">
+                      {/* Trigger Button component for Popup Modal */}
+                      <div className="flex justify-between items-center bg-white/95 dark:bg-zinc-900/50 p-3.5 rounded-3xl border border-gray-150/40 dark:border-zinc-800/45 shadow-2xs">
+                        <div className="flex items-center gap-1.5 bg-transparent">
+                          <Flame size={14} className="text-orange-500 animate-pulse" />
+                          <h3 className="text-xs font-black text-gray-800 dark:text-gray-100 uppercase tracking-widest">每日习惯打卡中心</h3>
+                        </div>
+                        <button
+                          id="btn-trigger-add-habit-modal"
+                          onClick={() => {
+                            setIsAddHabitModalOpen(true);
+                            if (audioSynthRef.current) {
+                              audioSynthRef.current.synthesizeHapticChime();
+                            }
+                          }}
+                          className="flex items-center gap-1.5 px-3 py-1.5 text-[10px] font-black bg-orange-500 hover:bg-orange-600 text-white rounded-xl shadow-3xs transition-all cursor-pointer active:scale-95 shrink-0"
+                        >
+                          <Plus size={11} className="stroke-[3]" />
+                          <span>新建打卡习惯</span>
+                        </button>
+                      </div>
+
+                      {/* 2. Habits Header & Progress stats summary */}
+                      <div className="bg-white/95 dark:bg-zinc-900/50 p-4 rounded-3xl border border-gray-150/40 dark:border-zinc-800/45 shadow-2xs space-y-3">
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-1.5">
+                            <Flame size={16} className="text-orange-500 animate-pulse" />
+                            <h3 className="text-xs font-black text-gray-800 dark:text-gray-100 uppercase tracking-widest">每日习惯打卡中心</h3>
+                          </div>
+                          <span className="text-[10px] bg-orange-50 dark:bg-orange-950/20 text-orange-600 dark:text-orange-400 px-2 py-0.5 rounded-full font-bold">
+                            今日完成 {habits.filter(h => h.completedDates.includes(todayStr)).length} / {habits.length}
+                          </span>
+                        </div>
+
+                        {/* Progress bar */}
+                        <div className="w-full bg-gray-100 dark:bg-zinc-800 h-2 rounded-full overflow-hidden relative">
+                          <motion.div
+                            initial={{ width: 0 }}
+                            animate={{ 
+                              width: habits.length > 0
+                                ? `${(habits.filter(h => h.completedDates.includes(todayStr)).length / habits.length) * 100}%`
+                                : '0%'
+                            }}
+                            className="bg-gradient-to-r from-orange-500 to-amber-400 h-2 rounded-full transition-all duration-300"
+                          />
+                        </div>
+
+                        <p className="text-[10px] text-gray-500 dark:text-zinc-400 leading-normal font-medium">
+                          🌟 持续的力量：每天完成小小的打卡动作，点燃自我进化的火焰。点击打卡激发成功的系统音效吧！
+                        </p>
+                      </div>
+
+                      {/* 3. Display habits list */}
+                      <div className="space-y-2.5">
+                        {habits.length === 0 ? (
+                          <div id="habits-empty-state" className="bg-white/80 dark:bg-[#1C1C1E] p-8 rounded-3xl text-center border border-dashed border-gray-200 dark:border-zinc-850 space-y-2 select-none">
+                            <Flame size={28} className="mx-auto text-gray-350 animate-pulse" />
+                            <h4 className="text-xs font-bold text-gray-700 dark:text-zinc-300">尚未定义打卡习惯</h4>
+                            <p className="text-[9.5px] text-gray-400 max-w-xs mx-auto">
+                              优秀的习惯是成功的基石。请在上方输入习惯名称并配置周期，开始每日的持之以恒打卡！
+                            </p>
+                          </div>
+                        ) : (
+                          habits.map(h => {
+                            const isDoneToday = h.completedDates.includes(todayStr);
+                            const totalDays = h.completedDates.length;
+                            return (
+                              <div
+                                id={`view-habit-card-${h.id}`}
+                                key={h.id}
+                                className={`p-4 bg-white dark:bg-[#1C1C1E] rounded-3xl border transition-all shadow-3xs flex items-center justify-between gap-4 select-none hover:border-orange-500/20 ${
+                                  isDoneToday 
+                                    ? 'border-orange-500/20 bg-orange-50/5 dark:bg-orange-500/5' 
+                                    : 'border-gray-150/40 dark:border-zinc-800'
+                                }`}
+                              >
+                                <div className="min-w-0 flex-1 space-y-1 text-left">
+                                  <h4 className={`text-xs font-bold transition-all ${
+                                    isDoneToday ? 'line-through text-gray-400 dark:text-zinc-550' : 'text-gray-800 dark:text-gray-200'
+                                  }`}>
+                                    {h.title}
+                                  </h4>
+                                  <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5 text-[8.5px] text-gray-400 dark:text-zinc-500 font-extrabold">
+                                    <span className="flex items-center gap-0.5">
+                                      ✨ 累计打卡 <strong>{totalDays}</strong> 天
+                                    </span>
+                                    {h.periodType && (
+                                      <span className="bg-gray-100 dark:bg-zinc-800 px-1 py-0.2 rounded font-bold text-orange-500">
+                                        🔁 {h.periodType === 'DAILY' ? '天' : h.periodType === 'WEEKLY' ? '周' : '月'}
+                                      </span>
+                                    )}
+                                    {h.periodType === 'WEEKLY' && h.weeklyDays && h.weeklyDays.length > 0 && (
+                                      <span className="bg-orange-50 dark:bg-orange-950/20 text-orange-600 dark:text-orange-400 px-1.5 py-0.2 rounded font-bold">
+                                        📅 周：{h.weeklyDays.map(d => ['一', '二', '三', '四', '五', '六', '日'][d - 1]).join(', ')}
+                                      </span>
+                                    )}
+                                    {h.periodType === 'MONTHLY' && h.monthlyDays && h.monthlyDays.length > 0 && (
+                                      <span className="bg-orange-50 dark:bg-orange-950/20 text-orange-600 dark:text-orange-400 px-1.5 py-0.2 rounded font-bold max-w-[160px] truncate" title={h.monthlyDays.map(d => `${d}号`).join(', ')}>
+                                        📅 月：{h.monthlyDays.map(d => `${d}号`).join(', ')}
+                                      </span>
+                                    )}
+                                    {h.startDate && h.endDate && (
+                                      <span className="text-gray-400 dark:text-zinc-650 font-semibold">
+                                        📅 {h.startDate} ~ {h.endDate}
+                                      </span>
+                                    )}
+                                  </div>
+                                </div>
+
+                                <div className="flex items-center gap-1.5">
+                                  {/* Delete Habit button */}
+                                  <button
+                                    id={`btn-habit-delete-${h.id}`}
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      const updated = habits.filter(x => x.id !== h.id);
+                                      handleSaveHabits(updated);
+                                      if (audioSynthRef.current) {
+                                        audioSynthRef.current.synthesizeHapticChime();
+                                      }
+                                    }}
+                                    className="w-8 h-8 rounded-xl bg-gray-50 hover:bg-rose-50 dark:bg-zinc-850 dark:hover:bg-rose-950/20 text-gray-400 hover:text-rose-500 flex items-center justify-center transition-all cursor-pointer"
+                                    title="删除此习惯"
+                                  >
+                                    <Trash2 size={11} />
+                                  </button>
+
+                                  {/* Mark/Complete Today Button */}
+                                  <button
+                                    id={`btn-habit-check-${h.id}`}
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      handleToggleHabitToday(h.id);
+                                    }}
+                                    className={`w-9 h-9 rounded-2xl flex items-center justify-center transition-all scale-100 active:scale-95 flex-shrink-0 cursor-pointer ${
+                                      isDoneToday 
+                                        ? 'bg-orange-500 text-white shadow-xs' 
+                                        : 'bg-gray-100 dark:bg-[#252529] text-gray-400 hover:bg-orange-120 dark:hover:bg-orange-500/10 hover:text-orange-500'
+                                    }`}
+                                  >
+                                    {isDoneToday ? (
+                                      <Flame size={18} className="fill-white" />
+                                    ) : (
+                                      <Circle size={18} />
+                                    )}
+                                  </button>
+                                </div>
+                              </div>
+                            );
+                          })
+                        )}
+                      </div>
                     </div>
                   )}
 
@@ -1353,7 +1574,7 @@ export default function App() {
 
                   {/* TAB 3: CALENDAR VIEW */}
                   {activeTab === 'CALENDAR' && (
-                    <div id="view-tab-calendar" className="h-full bg-white rounded-[2rem] p-4.5 shadow-2xs border border-gray-100">
+                    <div id="view-tab-calendar" className="h-full bg-white rounded-[2rem] p-4.5 shadow-2xs border border-gray-100 overflow-y-auto no-scrollbar">
                       <CalendarView
                         tasks={tasks}
                         onEditTask={handleEditTask}
@@ -1382,6 +1603,8 @@ export default function App() {
                         onStopTimer={handleStopTimer}
                         onLinkTask={(taskId) => setActiveTaskId(taskId || undefined)}
                         audioSynth={audioSynthRef.current!}
+                        customFocusTitle={customFocusTitle}
+                        onSetCustomFocusTitle={setCustomFocusTitle}
                       />
                     </div>
                   )}
@@ -1390,41 +1613,386 @@ export default function App() {
               </AnimatePresence>
             </div>
 
-            {/* Bottom Segments Tabs Board */}
-            <div id="app-bottom-nav" className="bg-white/80 backdrop-blur-md px-4 py-2 border-t border-gray-200/40 grid grid-cols-4 gap-0.5 text-center select-none z-10 w-full">
-              {[
-                { id: 'LIST' as const, name: '待办', icon: <CheckSquare size={16} /> },
-                { id: 'QUADRANT' as const, name: '四象限', icon: <Grid2X2 size={16} /> },
-                { id: 'CALENDAR' as const, name: '日历', icon: <Calendar size={16} /> },
-                { id: 'POMODORO' as const, name: '专注', icon: <Clock3 size={16} /> }
-              ].map(tab => {
-                const isActive = activeTab === tab.id;
-                return (
-                  <button
-                    id={`btn-tab-${tab.id}`}
-                    key={tab.id}
-                    onClick={() => {
-                      setActiveTab(tab.id);
-                      setIsHomeScreen(false);
-                    }}
-                    className={`flex flex-col items-center justify-center p-1 px-2.5 rounded-2xl cursor-pointer hover:bg-gray-100/50 transition-colors ${
-                      isActive 
-                        ? 'text-[#007DFF] font-black' 
-                        : 'text-gray-400 hover:text-gray-600 font-bold'
-                    }`}
-                  >
-                    <div className={isActive ? 'scale-105 transition-transform' : ''}>
-                      {tab.icon}
-                    </div>
-                    <span className="text-[9.5px] mt-0.5 tracking-wider font-extrabold">{tab.name}</span>
-                  </button>
-                );
-              })}
-            </div>
+             {/* Bottom Segments Tabs Board */}
+             {(() => {
+               const navTabs = [
+                 { id: 'LIST' as const, name: '待办', icon: <CheckSquare size={16} />, visible: true },
+                 { id: 'QUADRANT' as const, name: '四象限', icon: <Grid2X2 size={16} />, visible: showQuadrantsTab },
+                 { id: 'HABIT' as const, name: '习惯', icon: <Flame size={16} />, visible: showHabitsTab },
+                 { id: 'CALENDAR' as const, name: '日历', icon: <Calendar size={16} />, visible: true },
+                 { id: 'POMODORO' as const, name: '专注', icon: <Clock3 size={16} />, visible: showPomodoroTab }
+               ].filter(t => t.visible);
+
+               const gridColsClass = 
+                 navTabs.length === 5 ? 'grid-cols-5' :
+                 navTabs.length === 4 ? 'grid-cols-4' :
+                 navTabs.length === 3 ? 'grid-cols-3' : 'grid-cols-2';
+
+               return (
+                 <div id="app-bottom-nav" className={`bg-white/80 backdrop-blur-md px-4 py-2 border-t border-gray-200/40 grid ${gridColsClass} gap-0.5 text-center select-none z-10 w-full`}>
+                   {navTabs.map(tab => {
+                     const isActive = activeTab === tab.id;
+                     return (
+                       <button
+                         id={`btn-tab-${tab.id}`}
+                         key={tab.id}
+                         onClick={() => {
+                           setActiveTab(tab.id);
+                           setIsHomeScreen(false);
+                         }}
+                         className={`flex flex-col items-center justify-center p-1 px-1 rounded-2xl cursor-pointer hover:bg-gray-100/50 transition-colors ${
+                           isActive 
+                             ? 'text-[#007DFF] font-black' 
+                             : 'text-gray-400 hover:text-gray-600 font-bold'
+                         }`}
+                       >
+                         <div className={isActive ? 'scale-105 transition-transform text-[#007DFF]' : 'text-gray-400'}>
+                           {tab.icon}
+                         </div>
+                         <span className="text-[9.5px] mt-0.5 tracking-wider font-extrabold">{tab.name}</span>
+                       </button>
+                     );
+                   })}
+                 </div>
+               );
+             })()}
 
           </div>
         )}
+
+        {/* Floating Action Button (FAB) for quick task creation */}
+        {['LIST', 'CALENDAR', 'QUADRANT'].includes(activeTab) && (
+          <motion.button
+            id="fab-quick-task-create"
+            onClick={() => {
+              setIsHomeScreen(false);
+              handleAddTask();
+              if (audioSynthRef.current) {
+                audioSynthRef.current.synthesizeHapticChime();
+              }
+            }}
+            whileHover={{ scale: 1.15 }}
+            whileTap={{ scale: 0.9 }}
+            initial={{ scale: 0, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            transition={{
+              type: "spring",
+              stiffness: 260,
+              damping: 20
+            }}
+            title="快捷创建任务"
+            className="absolute bottom-16 right-5 w-12 h-12 bg-[#007DFF] hover:bg-[#0066CC] dark:bg-blue-600 dark:hover:bg-blue-700 text-white rounded-full shadow-lg hover:shadow-xl flex items-center justify-center cursor-pointer z-30 border border-white/10"
+          >
+            <Plus size={22} className="stroke-[3]" />
+          </motion.button>
+        )}
       </MockDevice>
+
+      {/* Template Import Modal triggered from header and widgets list */}
+      <AnimatePresence>
+        {isTemplateModalOpen && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="absolute inset-0 bg-black/60 backdrop-blur-md z-50 flex items-center justify-center p-4 animate-fade-in"
+          >
+            <motion.div
+              initial={{ scale: 0.95, y: 15 }}
+              animate={{ scale: 1, y: 0 }}
+              exit={{ scale: 0.95, y: 15 }}
+              className="bg-white dark:bg-[#1C1C1E] border border-gray-150/20 dark:border-zinc-800 rounded-[2rem] w-full max-w-sm p-5 shadow-2xl relative overflow-hidden text-left"
+            >
+              {/* Header */}
+              <div className="flex items-center justify-between mb-4 pb-2 border-b border-gray-100 dark:border-zinc-800">
+                <div className="flex items-center gap-1.5">
+                  <Bookmark className="text-emerald-500 animate-pulse" size={15} />
+                  <h3 className="text-xs font-black text-gray-950 dark:text-gray-50 uppercase tracking-wider">高效模版一键导入</h3>
+                </div>
+                <button
+                  onClick={() => setIsTemplateModalOpen(false)}
+                  className="p-1.5 hover:bg-gray-100 dark:hover:bg-zinc-800 text-gray-400 hover:text-gray-700 rounded-full cursor-pointer transition-colors"
+                >
+                  <X size={14} />
+                </button>
+              </div>
+
+              {/* Template list wrapper */}
+              <p className="text-[10px] text-gray-400 dark:text-zinc-500 mb-3 pl-1 leading-normal font-semibold">
+                💡 从下方精选的项目流模板库中点击一键克隆导入，极速构建您的今日敏捷待办工作流。
+              </p>
+
+              <div className="space-y-3 max-h-[380px] overflow-y-auto no-scrollbar pb-2">
+                {templates.length === 0 ? (
+                  <div className="text-center py-8 text-gray-400 text-[10px]">
+                    暂无可用模版，您可以在任何任务详情中点击「保存为模版」来添加自定义预设
+                  </div>
+                ) : (
+                  templates.map(tpl => (
+                    <div 
+                      key={tpl.id}
+                      className="p-4 bg-gray-50 dark:bg-[#252529] border border-gray-150/40 dark:border-zinc-800 rounded-3xl space-y-3 shadow-3xs hover:border-emerald-500/10 transition-all"
+                    >
+                      <div>
+                        <div className="flex items-center justify-between">
+                          <h4 className="text-xs font-black text-gray-800 dark:text-gray-150 uppercase tracking-wide">
+                            {tpl.name}
+                          </h4>
+                          <span className="text-[8px] bg-emerald-50 dark:bg-emerald-950/25 text-emerald-600 dark:text-emerald-400 px-2 py-0.5 rounded-full font-extrabold">
+                            🎒 含 {tpl.tasks.length} 项代办
+                          </span>
+                        </div>
+                        <p className="text-[9.5px] text-gray-500 dark:text-zinc-400 mt-1 leading-normal font-medium">
+                          {tpl.description || '无详细说明'}
+                        </p>
+                      </div>
+
+                      {/* Display task blueprints inside first */}
+                      <div className="space-y-1.5 border-t border-gray-150/30 dark:border-zinc-800/40 pt-2 pb-0.5">
+                        {tpl.tasks.map((bt, idx) => (
+                          <div key={idx} className="flex items-start gap-1.5 text-[9.5px] text-gray-450 dark:text-zinc-500 font-bold">
+                            <span className="text-emerald-500">•</span>
+                            <span className="text-gray-700 dark:text-zinc-350 line-clamp-1 flex-1 font-semibold">
+                              {bt.title}
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+
+                      {/* Import and deletion bar */}
+                      <div className="flex gap-2 pt-1.5 border-t border-gray-150/20 dark:border-zinc-800/20">
+                        <button
+                          onClick={() => {
+                            handleImportTemplate(tpl.id);
+                            setIsTemplateModalOpen(false);
+                            if (audioSynthRef.current) audioSynthRef.current.synthesizeSuccessChime();
+                          }}
+                          className="flex-1 py-1.5 bg-emerald-500 hover:bg-emerald-600 active:scale-98 text-white rounded-xl text-[10px] font-extrabold transition-all shadow-3xs cursor-pointer text-center"
+                        >
+                          一键克隆导入这组任务
+                        </button>
+                        
+                        {tpl.id !== 'hm-release' && tpl.id !== 'weekly-efficiency' && tpl.id !== 'travel-packing' && (
+                          <button
+                            onClick={(e) => handleDeleteTemplate(tpl.id, e)}
+                            className="p-1 px-2.5 bg-rose-50 hover:bg-rose-100 text-rose-600 rounded-xl text-[10px] font-bold transition-colors cursor-pointer"
+                          >
+                            清除
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  ))
+                )}
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Custom Habit Creation Modal */}
+      <AnimatePresence>
+        {isAddHabitModalOpen && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="absolute inset-0 bg-black/60 backdrop-blur-md z-50 flex items-center justify-center p-4"
+          >
+            <motion.div
+              initial={{ scale: 0.95, y: 15 }}
+              animate={{ scale: 1, y: 0 }}
+              exit={{ scale: 0.95, y: 15 }}
+              className="bg-white dark:bg-[#1C1C1E] border border-gray-150/20 dark:border-zinc-800 rounded-[2rem] w-full max-w-sm p-5 shadow-2xl relative overflow-hidden text-left space-y-4"
+            >
+              {/* Header */}
+              <div className="flex items-center justify-between pb-2 border-b border-gray-100 dark:border-zinc-800">
+                <div className="flex items-center gap-1.5 bg-transparent">
+                  <Flame className="text-orange-500 animate-pulse" size={15} />
+                  <h3 className="text-xs font-black text-gray-950 dark:text-gray-50 uppercase tracking-wider">创建自定义打卡习惯</h3>
+                </div>
+                <button
+                  id="btn-close-habit-modal"
+                  onClick={() => setIsAddHabitModalOpen(false)}
+                  className="p-1.5 hover:bg-gray-100 dark:hover:bg-zinc-800 text-gray-400 hover:text-gray-700 rounded-full cursor-pointer transition-colors"
+                >
+                  <X size={14} />
+                </button>
+              </div>
+
+              {/* Form Content */}
+              <div className="space-y-3 max-h-[420px] overflow-y-auto no-scrollbar pr-0.5">
+                {/* 1. Title Input */}
+                <div className="space-y-1">
+                  <label className="text-[9px] font-extrabold text-gray-450 dark:text-zinc-500 uppercase tracking-widest pl-0.5">习惯名称</label>
+                  <input
+                    id="input-habit-title"
+                    type="text"
+                    value={newHabitTitleVal}
+                    onChange={(e) => setNewHabitTitleVal(e.target.value)}
+                    placeholder="输入习惯：例如每天阅读30分钟"
+                    className="w-full bg-gray-50 dark:bg-[#252529] border border-gray-200/40 dark:border-zinc-800/80 rounded-xl p-2.5 text-[11px] font-bold text-gray-800 dark:text-gray-100 focus:outline-none focus:ring-1 focus:ring-orange-500/20 transition-all font-sans"
+                  />
+                </div>
+
+                {/* 2. Frequency Period */}
+                <div className="space-y-1">
+                  <label className="text-[9px] font-extrabold text-gray-450 dark:text-zinc-500 uppercase tracking-widest pl-0.5">打卡频率</label>
+                  <div className="grid grid-cols-3 gap-1.5 bg-gray-50 dark:bg-[#252529] p-1 rounded-xl border border-gray-200/20 dark:border-zinc-800/40">
+                    {(['DAILY', 'WEEKLY', 'MONTHLY'] as const).map((period) => (
+                      <button
+                        id={`btn-habit-period-${period.toLowerCase()}`}
+                        key={period}
+                        type="button"
+                        onClick={() => setNewHabitPeriod(period)}
+                        className={`py-1.5 rounded-lg text-[9.5px] font-extrabold transition-all cursor-pointer ${
+                          newHabitPeriod === period
+                            ? 'bg-orange-500 text-white shadow-3xs'
+                            : 'text-gray-400 hover:text-gray-650 hover:bg-gray-100 dark:hover:bg-zinc-800/50'
+                        }`}
+                      >
+                        {period === 'DAILY' ? '按天' : period === 'WEEKLY' ? '按周' : '按月'}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* 3. Conditional Weekly days selection */}
+                {newHabitPeriod === 'WEEKLY' && (
+                  <div className="space-y-1.5 animate-fade-in bg-orange-500/5 p-2 rounded-2xl border border-orange-500/10">
+                    <label className="text-[8.5px] font-extrabold text-orange-650 dark:text-orange-400 uppercase tracking-widest pl-0.5 block">选择每周重复执行的天</label>
+                    <div className="flex gap-1 justify-between bg-transparent">
+                      {[1, 2, 3, 4, 5, 6, 7].map((wkDayNum) => {
+                        const isSelected = selectedWeeklyDays.includes(wkDayNum);
+                        return (
+                          <button
+                            id={`btn-habit-weekly-day-${wkDayNum}`}
+                            key={wkDayNum}
+                            type="button"
+                            onClick={() => {
+                              if (isSelected) {
+                                setSelectedWeeklyDays(selectedWeeklyDays.filter(d => d !== wkDayNum));
+                              } else {
+                                setSelectedWeeklyDays([...selectedWeeklyDays, wkDayNum]);
+                              }
+                            }}
+                            className={`w-7 h-7 rounded-lg text-[10px] font-black flex items-center justify-center transition-all cursor-pointer active:scale-90 ${
+                              isSelected
+                                ? 'bg-orange-500 text-white font-extrabold'
+                                : 'bg-white dark:bg-[#1C1C1E] border border-gray-150/40 dark:border-zinc-800 text-gray-500 hover:text-orange-500'
+                            }`}
+                          >
+                            {['一', '二', '三', '四', '五', '六', '日'][wkDayNum - 1]}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+
+                {/* 4. Conditional Monthly days selection */}
+                {newHabitPeriod === 'MONTHLY' && (
+                  <div className="space-y-1.5 animate-fade-in bg-orange-500/5 p-2.5 rounded-2xl border border-orange-500/10 text-left">
+                    <label className="text-[8.5px] font-extrabold text-orange-650 dark:text-orange-400 uppercase tracking-widest pl-0.5 block">选择每月的几号打卡</label>
+                    <div className="grid grid-cols-7 gap-1 max-h-[110px] overflow-y-auto no-scrollbar bg-white/70 dark:bg-[#1C1C1E]/50 p-1.5 rounded-xl border border-gray-150/30 dark:border-zinc-800/40">
+                      {Array.from({ length: 31 }, (_, i) => i + 1).map((mthDayNum) => {
+                        const isSelected = selectedMonthlyDays.includes(mthDayNum);
+                        return (
+                          <button
+                            id={`btn-habit-monthly-day-${mthDayNum}`}
+                            key={mthDayNum}
+                            type="button"
+                            onClick={() => {
+                              if (isSelected) {
+                                setSelectedMonthlyDays(selectedMonthlyDays.filter(d => d !== mthDayNum));
+                              } else {
+                                setSelectedMonthlyDays([...selectedMonthlyDays, mthDayNum]);
+                              }
+                            }}
+                            className={`h-6 rounded-md text-[9px] font-extrabold flex items-center justify-center transition-all cursor-pointer ${
+                              isSelected
+                                ? 'bg-orange-500 text-white'
+                                : 'text-gray-400 hover:text-orange-550'
+                            }`}
+                          >
+                            {mthDayNum}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+
+                {/* 5. Date Range Form Fields */}
+                <div className="grid grid-cols-2 gap-3 pt-1">
+                  <div className="space-y-1">
+                    <label className="text-[8.5px] font-extrabold text-gray-400 dark:text-zinc-550 uppercase tracking-wider pl-0.5">开始日期</label>
+                    <input
+                      id="input-habit-start-date"
+                      type="date"
+                      value={newHabitStart}
+                      onChange={(e) => setNewHabitStart(e.target.value)}
+                      className="w-full bg-gray-50 dark:bg-[#252529] border border-gray-200/40 dark:border-zinc-805 rounded-xl p-1.5 text-[9px] font-bold text-gray-700 dark:text-gray-300 focus:outline-none focus:ring-1 focus:ring-orange-500/20"
+                    />
+                  </div>
+
+                  <div className="space-y-1">
+                    <label className="text-[8.5px] font-extrabold text-gray-400 dark:text-zinc-550 uppercase tracking-wider pl-0.5">结束日期</label>
+                    <input
+                      id="input-habit-end-date"
+                      type="date"
+                      value={newHabitEnd}
+                      onChange={(e) => setNewHabitEnd(e.target.value)}
+                      className="w-full bg-gray-50 dark:bg-[#252529] border border-gray-200/40 dark:border-zinc-805 rounded-xl p-1.5 text-[9px] font-bold text-gray-700 dark:text-gray-300 focus:outline-none focus:ring-1 focus:ring-orange-500/20"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Confirm & Trigger Actions */}
+              <div className="flex gap-2 pt-2 border-t border-gray-100 dark:border-zinc-850 bg-transparent">
+                <button
+                  id="btn-habit-modal-cancel"
+                  onClick={() => setIsAddHabitModalOpen(false)}
+                  className="flex-1 py-2 font-bold text-gray-500 hover:bg-gray-100 dark:hover:bg-zinc-800 text-[11px] rounded-xl transition-colors cursor-pointer text-center"
+                >
+                  取消
+                </button>
+                <button
+                  id="btn-habit-modal-confirm"
+                  onClick={() => {
+                    if (!newHabitTitleVal.trim()) return;
+                    const nid = 'habit-' + Date.now();
+                    const newHabit: Habit = {
+                      id: nid,
+                      title: newHabitTitleVal.trim(),
+                      createdAt: new Date().toISOString(),
+                      completedDates: [],
+                      periodType: newHabitPeriod,
+                      startDate: newHabitStart,
+                      endDate: newHabitEnd,
+                      weeklyDays: newHabitPeriod === 'WEEKLY' ? selectedWeeklyDays : undefined,
+                      monthlyDays: newHabitPeriod === 'MONTHLY' ? selectedMonthlyDays : undefined
+                    };
+                    const updated = [...habits, newHabit];
+                    handleSaveHabits(updated);
+                    setNewHabitTitleVal('');
+                    setSelectedWeeklyDays([]);
+                    setSelectedMonthlyDays([]);
+                    setIsAddHabitModalOpen(false);
+                    if (audioSynthRef.current) {
+                      audioSynthRef.current.synthesizeSuccessChime();
+                    }
+                  }}
+                  className="flex-1 py-2 bg-gradient-to-r from-orange-500 to-amber-500 text-white font-extrabold rounded-xl text-[11px] transition-colors cursor-pointer text-center shadow-md shadow-orange-500/10"
+                >
+                  确认添加
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* ZenFlow Clean Settings Modal Triggered from Header */}
       <AnimatePresence>
@@ -1485,6 +2053,69 @@ export default function App() {
                   </div>
                 </div>
 
+                {/* 1.5. Dynamic Bottom Tabs Toggle Settings */}
+                <div className="space-y-1.5">
+                  <span className="text-[9.5px] font-bold text-gray-400 dark:text-gray-500 uppercase block">动态底部功能菜单 (开启后显示，关闭后隐藏)</span>
+                  <div className="bg-gray-50 dark:bg-[#252529] p-3 rounded-2xl border border-gray-150/10 space-y-2.5">
+                    <label className="flex items-center justify-between cursor-pointer group">
+                      <div className="flex flex-col">
+                        <span className="text-[10.5px] font-extrabold text-gray-800 dark:text-gray-200">四象限功能</span>
+                        <span className="text-[8.5px] text-gray-400">高效拆解并按紧急与重要程度安排待办</span>
+                      </div>
+                      <input
+                        id="chk-settings-show-quadrants"
+                        type="checkbox"
+                        checked={showQuadrantsTab}
+                        onChange={(e) => {
+                          const val = e.target.checked;
+                          setShowQuadrantsTab(val);
+                          localStorage.setItem('hm_show_quadrants_tab', String(val));
+                          if (audioSynthRef.current) audioSynthRef.current.synthesizeHapticChime();
+                        }}
+                        className="w-4 h-4 rounded border-gray-300 dark:border-zinc-700 text-[#007DFF] focus:ring-[#007DFF] cursor-pointer"
+                      />
+                    </label>
+
+                    <label className="flex items-center justify-between cursor-pointer group border-t border-gray-150/30 dark:border-zinc-800/60 pt-2.5">
+                      <div className="flex flex-col">
+                        <span className="text-[10.5px] font-extrabold text-gray-800 dark:text-gray-200">习惯打卡中心</span>
+                        <span className="text-[8.5px] text-gray-400">追求每日高频小习惯，支持在独立打卡页记录打卡数</span>
+                      </div>
+                      <input
+                        id="chk-settings-show-habits"
+                        type="checkbox"
+                        checked={showHabitsTab}
+                        onChange={(e) => {
+                          const val = e.target.checked;
+                          setShowHabitsTab(val);
+                          localStorage.setItem('hm_show_habits_tab', String(val));
+                          if (audioSynthRef.current) audioSynthRef.current.synthesizeHapticChime();
+                        }}
+                        className="w-4 h-4 rounded border-gray-300 dark:border-zinc-700 text-[#007DFF] focus:ring-[#007DFF] cursor-pointer"
+                      />
+                    </label>
+
+                    <label className="flex items-center justify-between cursor-pointer group border-t border-gray-150/30 dark:border-zinc-800/60 pt-2.5">
+                      <div className="flex flex-col">
+                        <span className="text-[10.5px] font-extrabold text-gray-800 dark:text-gray-200">专注时钟功能</span>
+                        <span className="text-[8.5px] text-gray-400">番茄聚焦、正向沙漏计时以及多维睡眠音频</span>
+                      </div>
+                      <input
+                        id="chk-settings-show-pomodoro"
+                        type="checkbox"
+                        checked={showPomodoroTab}
+                        onChange={(e) => {
+                          const val = e.target.checked;
+                          setShowPomodoroTab(val);
+                          localStorage.setItem('hm_show_pomodoro_tab', String(val));
+                          if (audioSynthRef.current) audioSynthRef.current.synthesizeHapticChime();
+                        }}
+                        className="w-4 h-4 rounded border-gray-300 dark:border-zinc-700 text-[#007DFF] focus:ring-[#007DFF] cursor-pointer"
+                      />
+                    </label>
+                  </div>
+                </div>
+
                 {/* 2. Tasks cleaning helper integrated inside settings */}
                 <div className="space-y-1.5">
                   <span className="text-[9.5px] font-bold text-gray-400 dark:text-gray-500 uppercase block">快捷存储管家</span>
@@ -1500,119 +2131,7 @@ export default function App() {
                   </button>
                 </div>
 
-                {/* 3. Settings of Habits list */}
-                <div className="space-y-2 pt-2 border-t border-gray-100 dark:border-zinc-800">
-                  <span className="text-[9.5px] font-bold text-gray-400 dark:text-gray-500 uppercase block">打卡习惯库管理</span>
-                  {/* Habit Add Inline form */}
-                  <div className="flex gap-1.5">
-                    <input
-                      id="input-settings-new-habit"
-                      type="text"
-                      value={newHabitTitle}
-                      onChange={e => setNewHabitTitle(e.target.value)}
-                      placeholder="例如：每日背单词 10 个"
-                      className="flex-1 p-2 bg-gray-50 dark:bg-[#252529] border border-gray-150/20 dark:border-zinc-800 rounded-xl text-[10px] text-gray-800 dark:text-gray-200 focus:outline-none"
-                    />
-                    <button
-                      id="btn-settings-add-habit-trigger"
-                      onClick={handleAddHabit}
-                      className="px-3 bg-[#007DFF] text-white hover:bg-blue-600 font-bold rounded-xl text-[10px] transition-colors cursor-pointer"
-                    >
-                      新增习惯
-                    </button>
-                  </div>
-                  {/* List of Habits */}
-                  {habits.length > 0 ? (
-                    <div className="space-y-1.5 max-h-[120px] overflow-y-auto no-scrollbar pt-1">
-                      {habits.map(h => (
-                        <div key={h.id} className="flex items-center justify-between p-2 bg-gray-50 dark:bg-[#252529] rounded-xl border border-gray-155/10 text-[10px] text-gray-700 dark:text-gray-200">
-                          <span className="truncate font-semibold">{h.title}</span>
-                          <button
-                            onClick={() => handleDeleteHabit(h.id)}
-                            className="p-1 hover:bg-rose-50 dark:hover:bg-rose-950/20 text-gray-400 hover:text-rose-600 transition-colors rounded-sm cursor-pointer ml-2 flex-shrink-0"
-                          >
-                            <Trash2 size={11} />
-                          </button>
-                        </div>
-                      ))}
-                    </div>
-                  ) : (
-                    <p className="text-[8.5px] text-gray-400 dark:text-zinc-650 italic pl-1">暂无习惯，快在上方输入定制一个吧</p>
-                  )}
-                </div>
 
-                {/* 4. Settings of dynamic Quadrants categories */}
-                <div className="space-y-2 pt-2 border-t border-gray-100 dark:border-zinc-800">
-                  <span className="text-[9.5px] font-bold text-gray-400 dark:text-gray-500 uppercase block">个性化四象限扩充</span>
-                  
-                  {/* Color presets selection row */}
-                  <div className="space-y-1 pb-1">
-                    <span className="text-[8.5px] text-gray-400 dark:text-gray-500 block">色彩风格轮廓线预设</span>
-                    <div className="flex items-center space-x-2 bg-gray-50 dark:bg-[#252529] p-1.5 rounded-xl border border-gray-150/5">
-                      {QUADRANT_PRESET_DESIGNS.map((p, idx) => (
-                        <button
-                          key={idx}
-                          onClick={() => setSelectedPresetIndex(idx)}
-                          className={`w-4 h-4 rounded-full border transition-all ${p.color} ${
-                            selectedPresetIndex === idx 
-                              ? 'ring-2 ring-offset-2 ring-[#007DFF] scale-110' 
-                              : 'border-transparent opacity-80'
-                          }`}
-                        />
-                      ))}
-                    </div>
-                  </div>
-
-                  {/* Input form */}
-                  <div className="space-y-1.5">
-                    <input
-                      id="input-new-quadrant-title"
-                      type="text"
-                      value={newQuadTitle}
-                      onChange={e => setNewQuadTitle(e.target.value)}
-                      placeholder="极速象限名，例如：无脑琐碎小事"
-                      className="w-full p-2 bg-gray-50 dark:bg-[#252529] border border-gray-150/20 dark:border-zinc-800 rounded-xl text-[10px] text-gray-800 dark:text-gray-200 focus:outline-none"
-                    />
-                    <div className="flex gap-1.5">
-                      <input
-                        id="input-new-quadrant-desc"
-                        type="text"
-                        value={newQuadDescription}
-                        onChange={e => setNewQuadDescription(e.target.value)}
-                        placeholder="象限的精细定义或边界描述"
-                        className="flex-1 p-2 bg-gray-50 dark:bg-[#252529] border border-gray-150/20 dark:border-zinc-800 rounded-xl text-[10px] text-gray-80s dark:text-gray-200 focus:outline-none"
-                      />
-                      <button
-                        id="btn-settings-add-quadrant"
-                        onClick={handleAddQuadrant}
-                        className="px-3 bg-emerald-500 text-white hover:bg-emerald-600 font-bold rounded-xl text-[10px] transition-colors cursor-pointer whitespace-nowrap"
-                      >
-                        添增该象限
-                      </button>
-                    </div>
-                  </div>
-
-                  {/* Existing dynamic quadrant list */}
-                  <div className="space-y-1.5 max-h-[140px] overflow-y-auto no-scrollbar pt-1">
-                    {quadrantCategories.map(qc => (
-                      <div key={qc.id} className="flex items-start justify-between p-2.5 bg-gray-50 dark:bg-[#252529] rounded-xl border border-gray-155/10 text-[10px] text-gray-750 dark:text-gray-300 gap-2">
-                        <div className="min-w-0 flex-1">
-                          <p className="font-bold flex items-center gap-1.5">
-                            <span className={`w-2 h-2 rounded-full inline-block ${qc.color}`} />
-                            <span className="truncate">{qc.title}</span>
-                          </p>
-                          <p className="text-[8.5px] text-gray-405 dark:text-zinc-500 mt-0.5 leading-snug">{qc.description}</p>
-                        </div>
-                        <button
-                          onClick={() => handleDeleteQuadrant(qc.id)}
-                          className="p-1 hover:bg-rose-50 dark:hover:bg-rose-950/20 text-gray-400 hover:text-rose-500 transition-colors rounded-sm cursor-pointer flex-shrink-0"
-                        >
-                          <Trash2 size={11} />
-                        </button>
-                      </div>
-                    ))}
-                  </div>
-                </div>
 
                 {/* 5. Standard checklist Templates integrated inside settings */}
                 <div className="space-y-2">
@@ -1658,6 +2177,7 @@ export default function App() {
         isOpen={isDrawerOpen}
         task={editingTask}
         allTasks={tasks}
+        isQuadrantsEnabled={showQuadrantsTab}
         onClose={() => {
           setIsDrawerOpen(false);
           setEditingTask(null);

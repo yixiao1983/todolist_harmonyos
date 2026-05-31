@@ -180,11 +180,11 @@ export function CalendarView({ tasks, onEditTask, selectedDate, onSelectDate }: 
     );
   };
 
-  // 2. Render WEEK View: 7 Columns
+  // 2. Render WEEK View: Monday to Sunday vertical top-down stack
   const renderWeekView = () => {
     const weekDays = getWeekDaysArray(pivotDate);
     return (
-      <div id="calendar-week-flow" className="grid grid-cols-7 gap-1.5 h-[340px]">
+      <div id="calendar-week-flow" className="flex flex-col gap-1.5 max-h-[340px] overflow-y-auto pr-1 no-scrollbar">
         {weekDays.map((wd, i) => {
           const wdStr = formatYYYYMMDD(wd);
           const wdTasks = tasks.filter(t => t.dueDate === wdStr);
@@ -192,63 +192,75 @@ export function CalendarView({ tasks, onEditTask, selectedDate, onSelectDate }: 
           const isSelected = formatYYYYMMDD(pivotDate) === wdStr;
 
           return (
-            <button
-              id={`week-col-${wdStr}`}
+            <div
+              id={`week-row-${wdStr}`}
               key={i}
               onClick={() => {
                 setPivotDate(wd);
                 onSelectDate(wdStr);
               }}
-              className={`rounded-2xl p-2 flex flex-col items-center border transition-all text-left w-full h-full cursor-pointer overflow-hidden ${
+              className={`rounded-2xl p-2.5 flex items-center gap-3 border transition-all text-left cursor-pointer ${
                 isSelected 
                   ? 'bg-gray-950 border-gray-950 text-white shadow-xs' 
                   : isToday 
                     ? 'bg-blue-50 text-blue-600 border-blue-200' 
-                    : 'bg-white text-gray-800 border-gray-100 hover:border-gray-200'
+                    : 'bg-white text-gray-850 border-gray-100 hover:border-gray-200'
               }`}
             >
-              <span className={`text-[10px] font-bold ${isSelected ? 'text-gray-300' : 'text-gray-400'}`}>
-                {WEEKDAYS[i]}
-              </span>
-              <span className="text-sm font-black mt-0.5">{wd.getDate()}</span>
-
-              {/* Task Dots/Mini elements */}
-              <div className="flex-1 w-full mt-3 space-y-1 overflow-y-auto no-scrollbar">
-                {wdTasks.map(t => (
-                  <div 
-                    key={t.id} 
-                    className={`w-full text-[8px] p-0.5 px-1 rounded-sm truncate ${
-                      isSelected 
-                        ? 'bg-white/10 text-white' 
-                        : t.isCompleted 
-                          ? 'bg-gray-100 text-gray-400 line-through' 
-                          : t.priority === 'HIGH' 
-                            ? 'bg-rose-100 text-rose-800 font-bold' 
-                            : 'bg-blue-50 text-blue-800 font-bold'
-                    }`}
-                  >
-                    {t.title}
-                  </div>
-                ))}
+              {/* Day info marker on left */}
+              <div className="flex flex-col items-center justify-center min-w-[42px] border-r border-gray-100/50 pr-2">
+                <span className={`text-[9.5px] font-black ${isSelected ? 'text-gray-300' : 'text-gray-400'}`}>
+                  周{WEEKDAYS[i]}
+                </span>
+                <span className="text-sm font-black font-mono mt-0.5 leading-none">{wd.getDate()}</span>
               </div>
-            </button>
+
+              {/* Task list inside this weekday */}
+              <div className="flex-1 flex flex-wrap gap-1.5 overflow-hidden">
+                {wdTasks.length === 0 ? (
+                  <span className={`text-[10px] ${isSelected ? 'text-gray-500' : 'text-gray-300'} italic`}>暂无安排</span>
+                ) : (
+                  wdTasks.map(t => (
+                    <div 
+                      key={t.id} 
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onEditTask(t);
+                      }}
+                      className={`text-[9.5px] px-2 py-0.5 rounded-lg border font-bold truncate max-w-[140px] transition-all hover:scale-[1.02] ${
+                        isSelected 
+                          ? 'bg-white/15 text-white border-white/10 hover:bg-white/20' 
+                          : t.isCompleted 
+                            ? 'bg-gray-100 border-gray-200 text-gray-450 line-through' 
+                            : t.priority === 'HIGH' 
+                              ? 'bg-rose-50 text-rose-700 border-rose-100 font-bold' 
+                              : 'bg-blue-50 text-blue-700 border-blue-100 font-bold'
+                      }`}
+                    >
+                      {t.title}
+                    </div>
+                  ))
+                )}
+              </div>
+            </div>
           );
         })}
       </div>
     );
   };
 
-  // 3. Render MONTH View: 42 Days Grid
+  // 3. Render MONTH View: 42 Days Grid & selected day tasks list
   const renderMonthView = () => {
     const days = getDaysInMonthGrid(pivotDate);
     const selectedDateStr = formatYYYYMMDD(pivotDate);
+    const selectedDayTasks = tasks.filter(t => t.dueDate === selectedDateStr);
 
     return (
-      <div id="calendar-month-flow" className="flex flex-col h-[340px]">
+      <div id="calendar-month-flow" className="flex flex-col gap-2">
         {/* Week Days Headers */}
         <div className="grid grid-cols-7 text-center mb-1 bg-gray-100/50 p-1 rounded-xl">
           {WEEKDAYS.map((wd, i) => (
-            <span key={i} className="text-[10px] font-extrabold text-gray-500 py-1">{wd}</span>
+            <span key={i} className="text-[10px] font-extrabold text-gray-400 py-1">{wd}</span>
           ))}
         </div>
 
@@ -258,7 +270,6 @@ export function CalendarView({ tasks, onEditTask, selectedDate, onSelectDate }: 
             const dateStr = formatYYYYMMDD(item.date);
             const dayTasks = tasks.filter(t => t.dueDate === dateStr);
             const isSelected = dateStr === selectedDateStr;
-            const completedCount = dayTasks.filter(t => t.isCompleted).length;
 
             return (
               <button
@@ -268,27 +279,27 @@ export function CalendarView({ tasks, onEditTask, selectedDate, onSelectDate }: 
                   setPivotDate(item.date);
                   onSelectDate(dateStr);
                 }}
-                className={`relative rounded-xl p-1.5 border flex flex-col justify-between items-center text-center h-full transition-all cursor-pointer ${
+                className={`relative rounded-xl p-1.5 border flex flex-col justify-between items-center text-center h-[46px] transition-all cursor-pointer ${
                   isSelected 
                     ? 'bg-gray-900 border-gray-900 text-white shadow-2xs z-10' 
                     : item.isToday 
                       ? 'bg-blue-50 border-blue-200 text-blue-600' 
                       : item.isCurrentMonth
                         ? 'bg-white text-gray-800 border-gray-100 hover:border-gray-250 hover:bg-gray-50/50'
-                        : 'bg-transparent text-gray-350 border-transparent hover:border-gray-100'
+                        : 'bg-transparent text-gray-350 border-transparent hover:border-gray-105'
                 }`}
               >
-                <span className={`text-[11px] font-extrabold ${isSelected ? 'text-white' : 'text-gray-700'}`}>
+                <span className={`text-[10.5px] font-black ${isSelected ? 'text-white' : 'text-gray-700'}`}>
                   {item.date.getDate()}
                 </span>
                 
                 {/* Visual heat indicator */}
                 {dayTasks.length > 0 && (
-                  <div className="flex items-center space-x-0.5 mt-1">
+                  <div className="flex items-center space-x-0.5 mt-0.5">
                     {dayTasks.slice(0, 3).map((t, idx) => (
                       <span 
                         key={idx} 
-                        className={`w-1.5 h-1.5 rounded-full ${
+                        className={`w-1 h-1 rounded-full ${
                           t.isCompleted 
                             ? 'bg-emerald-500' 
                             : t.priority === 'HIGH' 
@@ -298,13 +309,60 @@ export function CalendarView({ tasks, onEditTask, selectedDate, onSelectDate }: 
                       />
                     ))}
                     {dayTasks.length > 3 && (
-                      <span className="text-[7px] text-gray-400 font-bold font-mono">+{dayTasks.length - 3}</span>
+                      <span className="text-[6.5px] text-gray-400 font-extrabold font-mono">+{dayTasks.length - 3}</span>
                     )}
                   </div>
                 )}
               </button>
             );
           })}
+        </div>
+
+        {/* Selected date task list (Refactored: borderless, layout integrated cleanly without an outer frame box) */}
+        <div id="month-tasks-list" className="mt-3.5 text-left space-y-2 bg-transparent">
+          <div className="flex items-center justify-between border-b border-gray-155 pb-1.5 mb-2 bg-transparent">
+            <span className="text-[9.5px] font-bold text-gray-400">点击项目直接快捷编辑 ({selectedDayTasks.length} 个任务)</span>
+          </div>
+
+          {selectedDayTasks.length === 0 ? (
+            <p className="text-[10px] text-gray-400 italic text-center py-2.5 font-bold">本日暂无安排，快去添加新日程吧</p>
+          ) : (
+            <div className="space-y-1.5 max-h-[140px] overflow-y-auto pr-1 no-scrollbar">
+              {selectedDayTasks.map(t => (
+                <div
+                  id={`month-task-item-${t.id}`}
+                  key={t.id}
+                  onClick={() => onEditTask(t)}
+                  className={`p-2 rounded-xl text-[10px] font-bold border cursor-pointer transition-all hover:translate-x-0.5 hover:bg-gray-100 flex items-center justify-between gap-2 ${
+                    t.isCompleted
+                      ? 'bg-gray-100/60 border-gray-200 text-gray-450 line-through'
+                      : t.priority === 'HIGH'
+                        ? 'bg-rose-50 border-rose-100 text-gray-800'
+                        : 'bg-white border-gray-150/50 text-gray-850'
+                  }`}
+                >
+                  <div className="flex items-center gap-1.5 overflow-hidden">
+                    <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${
+                      t.isCompleted 
+                        ? 'bg-gray-300' 
+                        : t.priority === 'HIGH' 
+                          ? 'bg-rose-500' 
+                          : 'bg-blue-500'
+                    }`} />
+                    <span className="truncate leading-tight">{t.title}</span>
+                  </div>
+                  <div className="flex items-center gap-2 shrink-0">
+                    <span className="text-[8px] font-black border border-gray-350/20 px-1 py-0.2 rounded bg-gray-50/80 text-gray-400 font-mono">
+                      Q{t.quadrant}
+                    </span>
+                    <span className="text-[8.5px] font-bold text-gray-400">
+                      {t.priority === 'HIGH' ? '高' : '低'}
+                    </span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
       </div>
     );
@@ -325,39 +383,39 @@ export function CalendarView({ tasks, onEditTask, selectedDate, onSelectDate }: 
     });
 
     return (
-      <div id="calendar-year-flow" className="flex flex-col h-[340px] bg-white rounded-3xl p-4.5 border border-gray-100">
-        <div className="flex items-center gap-2 mb-3">
-          <Sparkles size={14} className="text-amber-500 animate-spin" />
-          <h4 className="text-xs font-extrabold text-gray-700">度年度待办与专注力热力分布走势</h4>
+      <div id="calendar-year-flow" className="flex flex-col max-h-[340px] bg-white rounded-3xl p-3 border border-gray-100/50 overflow-y-auto no-scrollbar">
+        <div className="flex items-center gap-1.5 mb-2.5">
+          <Sparkles size={11} className="text-amber-500 shrink-0" />
+          <h4 className="text-[10px] font-extrabold text-gray-700 font-sans">年度待办与专注力热力分布走势</h4>
         </div>
         
-        <div className="grid grid-cols-3 gap-3.5 flex-1">
+        <div className="grid grid-cols-2 gap-2 flex-1">
           {monthsData.map((mon, i) => {
             // Calculate color density based on completes
             let densityColor = 'bg-gray-100 text-gray-400';
-            if (mon.completed > 0 && mon.completed <= 2) densityColor = 'bg-blue-100 text-blue-800';
-            else if (mon.completed > 2 && mon.completed <= 5) densityColor = 'bg-blue-200 text-blue-900 border border-blue-300';
-            else if (mon.completed > 5) densityColor = 'bg-emerald-500 text-white shadow-2xs font-extrabold';
+            if (mon.completed > 0 && mon.completed <= 2) densityColor = 'bg-blue-50 text-blue-700 border border-blue-105';
+            else if (mon.completed > 2 && mon.completed <= 5) densityColor = 'bg-blue-150 text-blue-900 border border-blue-200';
+            else if (mon.completed > 5) densityColor = 'bg-emerald-500 text-white shadow-2xs font-extrabold border border-emerald-600';
 
             return (
               <div 
                 id={`year-month-tile-${i}`}
                 key={i} 
-                className="flex flex-col justify-between p-3 rounded-2xl border border-gray-100 bg-gray-50/50 hover:bg-white hover:shadow-2xs transition-all"
+                className="flex flex-col justify-between p-2.5 rounded-xl border border-gray-100 bg-gray-50/50 hover:bg-white transition-all text-left"
               >
-                <div className="flex justify-between items-center">
-                  <span className="text-[11px] font-black text-gray-700">{MONTHS_ZH[i]}</span>
-                  <span className="text-[9px] font-mono text-gray-400">总:{mon.total}</span>
-                </div>
-                <div className="flex items-center justify-between mt-2">
-                  <div className={`text-[10px] p-1 px-2 rounded-xl text-center font-bold ${densityColor}`}>
-                    {mon.completed} 完结
-                  </div>
+                <div className="flex justify-between items-center bg-transparent">
+                  <span className="text-[10px] font-black text-gray-750">{MONTHS_ZH[i]}</span>
                   {mon.total > 0 && (
-                    <span className="text-[9px] font-black text-emerald-600">
+                    <span className="text-[8.5px] font-black text-emerald-600">
                       {Math.round((mon.completed / mon.total) * 100)}%
                     </span>
                   )}
+                </div>
+                <div className="flex items-center justify-between gap-1.5 mt-2 bg-transparent font-sans">
+                  <div className={`text-[8px] px-1.5 py-0.5 rounded-lg text-center font-bold ${densityColor}`}>
+                    {mon.completed} 完
+                  </div>
+                  <span className="text-[8.5px] font-bold text-gray-400 font-mono">总:{mon.total}</span>
                 </div>
               </div>
             );
@@ -368,66 +426,72 @@ export function CalendarView({ tasks, onEditTask, selectedDate, onSelectDate }: 
   };
 
   return (
-    <div id="calendar-view-container" className="space-y-4">
-      {/* Top Controller Panel */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-gray-50/50 p-3.5 rounded-3xl border border-gray-150/40">
-        <div className="flex items-center space-x-3.5">
-          <Calendar size={18} className="text-blue-500" />
-          <div className="flex items-center space-x-1.5 font-sans font-extrabold text-sm text-gray-800">
+    <div id="calendar-view-container" className="space-y-3.5">
+      {/* Refactored into two elegant rows to ensure perfect readability on mobile */}
+      <div className="flex flex-col gap-2.5 bg-transparent">
+        {/* Row 1: Mode selection buttons (日, 周, 月, 年) */}
+        <div className="flex items-center justify-between bg-gray-50/60 dark:bg-zinc-900/30 p-1.5 rounded-2xl border border-gray-150/20 dark:border-zinc-800/30 text-xs">
+          <span className="text-[10px] font-extrabold uppercase tracking-widest text-gray-400 dark:text-zinc-500 pl-1.5">视图维度</span>
+          <div id="calendar-modes" className="flex bg-gray-202/50 dark:bg-zinc-800/50 p-0.5 rounded-xl">
+            {(['DAY', 'WEEK', 'MONTH', 'YEAR'] as CalendarLevel[]).map(lvl => (
+              <button
+                id={`btn-cal-mode-${lvl}`}
+                key={lvl}
+                onClick={() => setCurrentLevel(lvl)}
+                className={`px-3 py-1 text-[10.5px] font-black rounded-lg transition-all cursor-pointer ${
+                  currentLevel === lvl 
+                    ? 'bg-white dark:bg-zinc-700 text-gray-950 dark:text-white shadow-3xs' 
+                    : 'text-gray-500 hover:text-gray-800 dark:text-zinc-400 dark:hover:text-zinc-200'
+                }`}
+              >
+                {lvl === 'DAY' && '日'}
+                {lvl === 'WEEK' && '周'}
+                {lvl === 'MONTH' && '月'}
+                {lvl === 'YEAR' && '年'}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* Row 2: Compact date shifters & navigation */}
+        <div className="flex items-center justify-between bg-gray-50/60 dark:bg-zinc-900/30 p-1.5 rounded-2xl border border-gray-150/20 dark:border-zinc-800/30 text-xs">
+          <span className="text-[10px] font-extrabold uppercase tracking-widest text-gray-400 dark:text-zinc-500 pl-1.5">时间控制</span>
+          <div className="flex items-center space-x-1 font-extrabold text-[11px] text-gray-805">
             <button 
               id="btn-cal-prev"
               onClick={() => changePivotDate('back')}
-              className="p-1 rounded-lg hover:bg-gray-250 cursor-pointer text-gray-500"
+              className="p-1 rounded-lg hover:bg-gray-202 dark:hover:bg-zinc-800 bg-transparent cursor-pointer text-gray-500 dark:text-zinc-400"
             >
-              <ChevronLeft size={16} />
+              <ChevronLeft size={14} />
             </button>
-            <span className="px-1 min-w-22 text-center tracking-tight">
-              {currentLevel === 'YEAR' && `${pivotDate.getFullYear()} 年`}
-              {currentLevel === 'MONTH' && `${pivotDate.getFullYear()}年 ${MONTHS_ZH[pivotDate.getMonth()]}`}
-              {currentLevel === 'WEEK' && `第 ${Math.ceil(pivotDate.getDate() / 7)} 周 (${pivotDate.getMonth() + 1}月)`}
-              {currentLevel === 'DAY' && formatYYYYMMDD(pivotDate)}
+            <span className="px-1 min-w-[76px] text-center tracking-tight text-[10.5px] font-black text-gray-855 dark:text-gray-200 font-mono">
+              {currentLevel === 'YEAR' && `${pivotDate.getFullYear()}年`}
+              {currentLevel === 'MONTH' && `${pivotDate.getFullYear()}年${pivotDate.getMonth() + 1}月`}
+              {currentLevel === 'WEEK' && `${pivotDate.getMonth() + 1}月 w${Math.ceil(pivotDate.getDate() / 7)}`}
+              {currentLevel === 'DAY' && formatYYYYMMDD(pivotDate).substring(5)}
             </span>
             <button 
               id="btn-cal-next"
               onClick={() => changePivotDate('forward')}
-              className="p-1 rounded-lg hover:bg-gray-250 cursor-pointer text-gray-500"
+              className="p-1 rounded-lg hover:bg-gray-202 dark:hover:bg-zinc-800 bg-transparent cursor-pointer text-gray-500 dark:text-zinc-400"
             >
-              <ChevronRight size={16} />
+              <ChevronRight size={14} />
+            </button>
+            
+            {/* Today Button shortcut */}
+            <button
+              id="btn-cal-today"
+              onClick={jumpToToday}
+              className="text-[9.5px] font-black text-[#007DFF] hover:bg-blue-105 bg-blue-50/50 dark:bg-blue-900/20 p-1 px-1.5 rounded-lg cursor-pointer"
+            >
+              今
             </button>
           </div>
-          <button
-            id="btn-cal-today"
-            onClick={jumpToToday}
-            className="text-[10px] font-bold text-blue-600 hover:text-blue-700 bg-blue-50 hover:bg-blue-100 p-1 px-2.5 rounded-xl cursor-pointer"
-          >
-            今日
-          </button>
-        </div>
-
-        {/* Calendar Mode Toggles */}
-        <div id="calendar-modes" className="flex bg-gray-150/80 p-0.5 rounded-2xl">
-          {(['DAY', 'WEEK', 'MONTH', 'YEAR'] as CalendarLevel[]).map(lvl => (
-            <button
-              id={`btn-cal-mode-${lvl}`}
-              key={lvl}
-              onClick={() => setCurrentLevel(lvl)}
-              className={`px-3 py-1 text-[11px] font-extrabold rounded-xl transition-all ${
-                currentLevel === lvl 
-                  ? 'bg-white text-gray-900 shadow-2xs' 
-                  : 'text-gray-500 hover:text-gray-700'
-              }`}
-            >
-              {lvl === 'DAY' && '日'}
-              {lvl === 'WEEK' && '周'}
-              {lvl === 'MONTH' && '月'}
-              {lvl === 'YEAR' && '年'}
-            </button>
-          ))}
         </div>
       </div>
 
       {/* Main Grid Render Area */}
-      <div id="calendar-view-content" className="min-h-[340px]">
+      <div id="calendar-view-content" className="min-h-[280px]">
         {currentLevel === 'DAY' && renderDayView()}
         {currentLevel === 'WEEK' && renderWeekView()}
         {currentLevel === 'MONTH' && renderMonthView()}

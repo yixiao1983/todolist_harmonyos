@@ -14,9 +14,10 @@ interface TaskDrawerProps {
   allTasks: Task[];
   onSave: (task: Task) => void;
   onSaveAsTemplate?: (name: string, description: string, task: Task) => void;
+  isQuadrantsEnabled?: boolean;
 }
 
-export function TaskDrawer({ isOpen, onClose, task, allTasks, onSave, onSaveAsTemplate }: TaskDrawerProps) {
+export function TaskDrawer({ isOpen, onClose, task, allTasks, onSave, onSaveAsTemplate, isQuadrantsEnabled = true }: TaskDrawerProps) {
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [priority, setPriority] = useState<Priority>('MEDIUM');
@@ -255,39 +256,41 @@ export function TaskDrawer({ isOpen, onClose, task, allTasks, onSave, onSaveAsTe
           </div>
 
           {/* Quadrant Dimension Selection */}
-          <div className="bg-white p-4 rounded-3xl shadow-xs border border-gray-100 space-y-2">
-            <div className="flex items-center justify-between">
-              <span className="text-xs font-semibold text-gray-500">归属四象限 (智能分类)</span>
-              <span id="quad-badge" className="text-xs font-medium text-blue-600 bg-blue-50 px-2.5 py-0.5 rounded-full">
-                {quadrant === 1 && '第 I 象限：重要且紧急'}
-                {quadrant === 2 && '第 II 象限：重要不紧急'}
-                {quadrant === 3 && '第 III 象限：紧急不重要'}
-                {quadrant === 4 && '第 IV 象限：不紧急不重要'}
-              </span>
+          {isQuadrantsEnabled && (
+            <div className="bg-white p-4 rounded-3xl shadow-xs border border-gray-100 space-y-2">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-semibold text-gray-500">归属四象限 (智能分类)</span>
+                <span id="quad-badge" className="text-xs font-medium text-blue-600 bg-blue-50 px-2.5 py-0.5 rounded-full">
+                  {quadrant === 1 && '第 I 象限：重要且紧急'}
+                  {quadrant === 2 && '第 II 象限：重要不紧急'}
+                  {quadrant === 3 && '第 III 象限：紧急不重要'}
+                  {quadrant === 4 && '第 IV 象限：不紧急不重要'}
+                </span>
+              </div>
+              <div id="quadrant-matrix" className="grid grid-cols-2 gap-2 h-26">
+                {[
+                  { n: 1, name: '重要且紧急', c: 'border-l-4 border-l-rose-500 hover:bg-rose-50/40 bg-rose-50/10' },
+                  { n: 2, name: '重要不紧急', c: 'border-l-4 border-l-amber-400 hover:bg-amber-50/40 bg-amber-50/10' },
+                  { n: 3, name: '紧急不重要', c: 'border-l-4 border-l-blue-500 hover:bg-blue-50/40 bg-blue-50/10' },
+                  { n: 4, name: '不紧急不重要', c: 'border-l-4 border-l-gray-400 hover:bg-gray-50/40 bg-gray-50/10' }
+                ].map(q => (
+                  <button
+                    id={`btn-quad-${q.n}`}
+                    key={q.n}
+                    onClick={() => setQuadrant(q.n as Quadrant)}
+                    className={`p-2.5 rounded-2xl border text-left flex flex-col justify-between transition-all duration-200 cursor-pointer ${q.c} ${
+                      quadrant === q.n 
+                        ? 'border-gray-800 scale-[1.02] shadow-xs' 
+                        : 'border-gray-100 hover:border-gray-200'
+                    }`}
+                  >
+                    <span className="text-[10px] text-gray-400 font-bold">象限 0{q.n}</span>
+                    <span className="text-xs font-semibold text-gray-700">{q.name}</span>
+                  </button>
+                ))}
+              </div>
             </div>
-            <div id="quadrant-matrix" className="grid grid-cols-2 gap-2 h-26">
-              {[
-                { n: 1, name: '重要且紧急', c: 'border-l-4 border-l-rose-500 hover:bg-rose-50/40 bg-rose-50/10' },
-                { n: 2, name: '重要不紧急', c: 'border-l-4 border-l-amber-400 hover:bg-amber-50/40 bg-amber-50/10' },
-                { n: 3, name: '紧急不重要', c: 'border-l-4 border-l-blue-500 hover:bg-blue-50/40 bg-blue-50/10' },
-                { n: 4, name: '不紧急不重要', c: 'border-l-4 border-l-gray-400 hover:bg-gray-50/40 bg-gray-50/10' }
-              ].map(q => (
-                <button
-                  id={`btn-quad-${q.n}`}
-                  key={q.n}
-                  onClick={() => setQuadrant(q.n as Quadrant)}
-                  className={`p-2.5 rounded-2xl border text-left flex flex-col justify-between transition-all duration-200 cursor-pointer ${q.c} ${
-                    quadrant === q.n 
-                      ? 'border-gray-800 scale-[1.02] shadow-xs' 
-                      : 'border-gray-100 hover:border-gray-200'
-                  }`}
-                >
-                  <span className="text-[10px] text-gray-400 font-bold">象限 0{q.n}</span>
-                  <span className="text-xs font-semibold text-gray-700">{q.name}</span>
-                </button>
-              ))}
-            </div>
-          </div>
+          )}
 
           {/* Subtasks Section */}
           <div className="bg-white p-4 rounded-3xl shadow-xs border border-gray-100 space-y-3">
