@@ -6,3 +6,132 @@
   --font-display: "Space Grotesk", "Inter", sans-serif;
   --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, monospace;
 }
+
+/* HarmonyOS NEXT Dark Mode Custom System Color Palette */
+.dark {
+  color-scheme: dark;
+}
+
+/* Background overrides: Smooth transitions to Anthracite Gray (#121214) and Slate Card (#1C1C1E) */
+.dark .bg-white {
+  background-color: #1C1C1E !important;
+}
+
+.dark .bg-\[\#FAFAFA\]\/95,
+.dark .bg-\[\#FAFAFA\],
+.dark .bg-gray-50,
+.dark .bg-gray-100,
+.dark .bg-gray-150,
+.dark .bg-gray-100\/80,
+.dark .bg-gray-155 {
+  background-color: #252529 !important;
+}
+
+.dark .bg-\[\#EDEFF2\],
+.dark .bg-\[\#EEF2F6\],
+.dark .bg-\[\#F1F3F5\],
+.dark .bg-\[\#EDEFF2\]\/80,
+.dark .bg-white\/70,
+.dark .bg-white\/60,
+.dark .bg-[#EDEFF2],
+.dark .bg-[#EDEFF2]/80 {
+  background-color: #121214 !important;
+}
+
+/* Text overrides: Pure high-contrast readable elements */
+.dark .text-gray-950,
+.dark .text-gray-900,
+.dark .text-gray-850,
+.dark .text-gray-800,
+.dark .text-gray-700,
+.dark .text-\[\#1A1A1A\] {
+  color: #FAF9FA !important;
+}
+
+.dark .text-gray-600,
+.dark .text-gray-500,
+.dark .text-gray-400 {
+  color: #8E8E93 !important;
+}
+
+/* Borders overrides: Matte separators (#2C2C2E) */
+.dark .border-gray-100,
+.dark .border-gray-200,
+.dark .border-gray-150,
+.dark .border-gray-200\/40,
+.dark .border-gray-150\/40,
+.dark .border-gray-150\/10,
+.dark .border-blue-100 {
+  border-color: #2C2C2E !important;
+}
+
+/* Smooth interactive transitions */
+.dark .hover\:bg-gray-150\/80:hover,
+.dark .hover\:bg-gray-100:hover,
+.dark .hover\:bg-gray-200:hover,
+.dark .hover\:bg-gray-50:hover {
+  background-color: #2C2C2E !important;
+}
+
+/* Interactive widget dock, service cards & forms */
+.dark #widget-todo,
+.dark #widget-focus,
+.dark #desktop-dock,
+.dark #calendar-day-flow,
+.dark #view-tab-calendar {
+  background-color: #1C1C1E !important;
+  border-color: #2C2C2E !important;
+}
+
+.dark #desktop-dock button {
+  background-color: #252529 !important;
+  border-color: #2C2C2E !important;
+}
+
+.dark #desktop-dock span {
+  color: #FAF9FA !important;
+}
+
+/* High contrast active state tags */
+.dark .bg-\[\#1A1A1A\] {
+  background-color: #E5E5E7 !important;
+  color: #121214 !important;
+}
+
+/* Custom interactive input search overrides */
+.dark #input-search-query {
+  color: #FAF9FA !important;
+}
+
+.dark ::placeholder {
+  color: #8E8E93 !important;
+}
+
+/* System scrollbars adaptation */
+.dark ::-webkit-scrollbar-track {
+  background: #121214 !important;
+}
+
+.dark ::-webkit-scrollbar-thumb {
+  background: #2C2C2E !important;
+}
+
+/* Extreme focus ring contrast enhancement */
+.focus-within\:ring-\[\#007DFF\]\/15:focus-within {
+  transition: all 0.2s ease-in-out;
+}
+.dark .focus-within\:ring-\[\#007DFF\]\/15:focus-within {
+  box-shadow: 0 0 0 2px #007DFF !important;
+  border-color: #007DFF !important;
+}
+
+/* Drawer / Slider panel backgrounds */
+.dark .bg-white\/90 {
+  background-color: #1C1C1EED !important;
+}
+
+.dark #clipboard-alert-bubble,
+.dark #paste-alert-bubble {
+  background-color: #1C1C1EED !important;
+  border-color: #007DFF80 !important;
+}

@@ -5,7 +5,8 @@
 
 export type Priority = 'HIGH' | 'MEDIUM' | 'LOW';
 
-export type Quadrant = 1 | 2 | 3 | 4; 
+export type Quadrant = number; 
+// Dynamic quadrants can be configured through settings. Default quadrants:
 // 1 = 重要且紧急 (Important & Urgent)
 // 2 = 重要不紧急 (Important & Not Urgent)
 // 3 = 紧急不重要 (Not Important & Urgent)
@@ -15,6 +16,22 @@ export interface SubTask {
   id: string;
   title: string;
   isCompleted: boolean;
+}
+
+export interface Habit {
+  id: string;
+  title: string;
+  createdAt: string;
+  completedDates: string[]; // dates of completion, e.g. ["2026-05-31"]
+}
+
+export interface QuadrantCategory {
+  id: number;
+  title: string;
+  description: string;
+  color: string; // Tailwind gradient/bg classes, e.g. "from-rose-50 to-rose-100/50 hover:bg-rose-100/40 border-rose-200/60 dark:from-rose-950/20 dark:to-rose-800/10 dark:border-rose-900/30"
+  badgeClass: string; // e.g. "bg-rose-500 text-white"
+  accentColor: string; // e.g. "text-rose-600"
 }
 
 export interface Task {

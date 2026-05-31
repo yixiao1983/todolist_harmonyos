@@ -4,7 +4,7 @@
  */
 
 import React from 'react';
-import { Task, Quadrant, Priority } from '../types';
+import { Task, Quadrant, Priority, QuadrantCategory } from '../types';
 import { Plus, CheckCircle, Circle, Flame, CalendarClock, ShieldAlert, Coffee, ArrowUpRight } from 'lucide-react';
 
 interface TaskQuadrantProps {
@@ -12,95 +12,114 @@ interface TaskQuadrantProps {
   onToggleComplete: (id: string) => void;
   onEditTask: (task: Task) => void;
   onAddTaskInQuadrant: (quadrant: Quadrant) => void;
+  onToggleSubtask: (taskId: string, subtaskId: string) => void;
+  onUpdateTaskQuadrant: (taskId: string, quadrant: Quadrant) => void;
+  quadrantCategories: QuadrantCategory[];
 }
 
-export function TaskQuadrant({ tasks, onToggleComplete, onEditTask, onAddTaskInQuadrant }: TaskQuadrantProps) {
+export function TaskQuadrant({
+  tasks,
+  onToggleComplete,
+  onEditTask,
+  onAddTaskInQuadrant,
+  onToggleSubtask,
+  onUpdateTaskQuadrant,
+  quadrantCategories
+}: TaskQuadrantProps) {
   
+  // Track which quadrant is actively being dragged over
+  const [activeDragOverQuad, setActiveDragOverQuad] = React.useState<Quadrant | null>(null);
+
+  const handleDragOver = (e: React.DragEvent, q: Quadrant) => {
+    e.preventDefault();
+    if (activeDragOverQuad !== q) {
+      setActiveDragOverQuad(q);
+    }
+  };
+
+  const handleDragLeave = (e: React.DragEvent) => {
+    e.preventDefault();
+    setActiveDragOverQuad(null);
+  };
+
+  const handleDrop = (e: React.DragEvent, targetQ: Quadrant) => {
+    e.preventDefault();
+    setActiveDragOverQuad(null);
+    const taskId = e.dataTransfer.getData('text/plain');
+    if (taskId) {
+      onUpdateTaskQuadrant(taskId, targetQ);
+    }
+  };
+
   // Sift tasks by quadrant
   const getQuadrantTasks = (q: Quadrant) => {
     return tasks.filter(t => t.quadrant === q);
   };
 
-  const categories = [
-    {
-      id: 1 as Quadrant,
-      title: '重要 且 紧急 (第 I 象限)',
-      description: '立即处理、危机应对、期限任务',
-      color: 'from-rose-50 to-rose-100/50 hover:bg-rose-100/40 border-rose-200/60',
-      badgeClass: 'bg-rose-500 text-white',
-      accentColor: 'text-rose-600',
-      icon: <Flame size={16} className="text-rose-500 animate-pulse" />,
-    },
-    {
-      id: 2 as Quadrant,
-      title: '重要 但 不紧急 (第 II 象限)',
-      description: '规划开发、职业资产、日常健康',
-      color: 'from-amber-50 to-amber-100/50 hover:bg-amber-100/40 border-amber-200/60',
-      badgeClass: 'bg-amber-500 text-gray-900',
-      accentColor: 'text-amber-700',
-      icon: <CalendarClock size={16} className="text-amber-500" />,
-    },
-    {
-      id: 3 as Quadrant,
-      title: '紧急 但 不重要 (第 III 象限)',
-      description: '琐碎电话、部分收件、无关邀请',
-      color: 'from-blue-50 to-blue-100/50 hover:bg-blue-100/40 border-blue-200/60',
-      badgeClass: 'bg-blue-500 text-white',
-      accentColor: 'text-blue-600',
-      icon: <ShieldAlert size={16} className="text-blue-500" />,
-    },
-    {
-      id: 4 as Quadrant,
-      title: '不重要 且 不紧急 (第 IV 象限)',
-      description: '娱乐消遣、阅读碎片、杂乱事务',
-      color: 'from-gray-50 to-gray-100/50 hover:bg-gray-100/45 border-gray-200/60',
-      badgeClass: 'bg-gray-500 text-white',
-      accentColor: 'text-gray-600',
-      icon: <Coffee size={16} className="text-gray-400" />,
-    }
-  ];
+  const categories = quadrantCategories.map((qc, index) => {
+    const icons = [
+      <Flame size={14} className="text-rose-500" />,
+      <CalendarClock size={14} className="text-amber-500" />,
+      <ShieldAlert size={14} className="text-blue-500" />,
+      <Coffee size={14} className="text-gray-450" />
+    ];
+    return {
+      ...qc,
+      icon: icons[index % icons.length] || <Coffee size={14} className="text-gray-450" />
+    };
+  });
 
   return (
-    <div id="quadrant-container" className="grid grid-cols-1 md:grid-cols-2 gap-4 h-full">
+    <div id="quadrant-container" className="grid grid-cols-2 gap-2.5 h-full">
       {categories.map(cat => {
         const catTasks = getQuadrantTasks(cat.id);
+        const isHoveredZone = activeDragOverQuad === cat.id;
         
         return (
           <div
             id={`quad-card-${cat.id}`}
             key={cat.id}
-            className={`rounded-[2rem] border p-4.5 flex flex-col h-[350px] bg-gradient-to-br transition-all duration-300 shadow-2xs hover:shadow-xs ${cat.color}`}
+            onDragOver={(e) => handleDragOver(e, cat.id)}
+            onDragLeave={handleDragLeave}
+            onDrop={(e) => handleDrop(e, cat.id)}
+            className={`rounded-[1.75rem] border p-3 flex flex-col h-[205px] bg-gradient-to-br transition-all duration-300 shadow-2xs hover:shadow-xs relative select-none ${
+              isHoveredZone 
+                ? 'from-[#007DFF]/10 to-[#007DFF]/20 border-[#007DFF] dark:from-[#007DFF]/20 dark:to-[#007DFF]/10 scale-[1.015] shadow-sm z-10' 
+                : cat.color
+            }`}
           >
             {/* Quadrant Header */}
-            <div className="flex items-center justify-between mb-2">
-              <div className="flex items-center space-x-2">
-                <span className={`w-5 h-5 flex items-center justify-center rounded-lg text-xs font-black ${cat.badgeClass}`}>
+            <div className="flex items-center justify-between mb-1">
+              <div className="flex items-center space-x-1 min-w-0">
+                <span className={`w-4 h-4 flex items-center justify-center rounded-md text-[9px] font-black ${cat.badgeClass} flex-shrink-0`}>
                   {cat.id}
                 </span>
-                <h4 className="text-sm font-bold text-gray-800 font-sans tracking-tight">
+                <h4 className="text-[10.5px] font-black text-gray-800 dark:text-gray-100 font-sans tracking-tight truncate leading-none">
                   {cat.title}
                 </h4>
               </div>
               <button
                 id={`btn-quad-add-${cat.id}`}
                 onClick={() => onAddTaskInQuadrant(cat.id)}
-                className="p-1 px-2.5 rounded-xl bg-white hover:bg-gray-100/80 border border-gray-200/40 text-gray-600 hover:text-gray-950 font-bold text-xs flex items-center gap-1 cursor-pointer transition-colors"
+                className="p-1 rounded-lg bg-white/95 dark:bg-zinc-800/90 hover:bg-white dark:hover:bg-zinc-700 border border-gray-200/30 dark:border-zinc-700 text-gray-600 dark:text-gray-300 hover:text-gray-950 flex items-center justify-center cursor-pointer transition-colors shadow-2xs"
+                title="快速录入"
               >
-                <Plus size={11} />
-                快速录入
+                <Plus size={11} className="stroke-[2.5]" />
               </button>
             </div>
 
-            <p className="text-[10.5px] text-gray-400 font-medium mb-3.5 leading-snug">
+            <p className="text-[8px] text-gray-400 font-bold mb-2 leading-none truncate">
               {cat.description}
             </p>
 
             {/* Tasks Container */}
-            <div id={`quad-scroller-${cat.id}`} className="flex-1 overflow-y-auto space-y-1.5 pr-1">
+            <div id={`quad-scroller-${cat.id}`} className={`flex-1 overflow-y-auto space-y-1 pr-0.5 no-scrollbar rounded-xl transition-all duration-250 ${isHoveredZone ? 'bg-blue-50/10' : ''}`}>
               {catTasks.length === 0 ? (
-                <div className="h-full flex flex-col items-center justify-center text-center opacity-40 py-8">
+                <div className="h-full flex flex-col items-center justify-center text-center opacity-30 py-4">
                   {cat.icon}
-                  <span className="text-[11px] text-gray-400 font-bold mt-2">暂无任务分发到此象限</span>
+                  <span className="text-[8.5px] text-gray-400 font-bold mt-1">
+                    {isHoveredZone ? '松手拖入代办' : '暂无代办分派'}
+                  </span>
                 </div>
               ) : (
                 catTasks.map(t => {
@@ -108,56 +127,76 @@ export function TaskQuadrant({ tasks, onToggleComplete, onEditTask, onAddTaskInQ
                     <div
                       id={`quad-task-item-${t.id}`}
                       key={t.id}
-                      className="group/item flex items-center justify-between bg-white/90 hover:bg-white p-2.5 rounded-2xl border border-gray-150/40 shadow-2xs transition-all duration-200 hover:translate-x-0.5 cursor-pointer"
+                      draggable
+                      onDragStart={(e) => {
+                        e.dataTransfer.setData('text/plain', t.id);
+                        e.dataTransfer.effectAllowed = 'move';
+                      }}
+                      className="group/item flex flex-col bg-white/95 dark:bg-zinc-800/40 hover:bg-white dark:hover:bg-zinc-800/80 p-2 rounded-xl border border-gray-150/30 dark:border-zinc-805 shadow-2xs transition-all duration-200 cursor-grab active:cursor-grabbing hover:shadow-xs active:scale-[0.98]"
                       onClick={() => onEditTask(t)}
                     >
-                      <div className="flex items-center space-x-2.5 flex-1 min-w-0">
-                        {/* Checkbox */}
-                        <button
-                          id={`btn-quad-toggle-${t.id}`}
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            onToggleComplete(t.id);
-                          }}
-                          className={`flex-shrink-0 cursor-pointer transition-transform duration-100 active:scale-90 ${cat.accentColor}`}
-                        >
-                          {t.isCompleted ? (
-                            <CheckCircle size={17} className="fill-emerald-50 text-emerald-600" />
-                          ) : (
-                            <Circle size={17} className="opacity-80 hover:opacity-100 text-gray-400" />
-                          )}
-                        </button>
+                      <div className="flex items-center justify-between gap-1">
+                        <div className="flex items-center space-x-1.5 flex-1 min-w-0">
+                          {/* Checkbox */}
+                          <button
+                            id={`btn-quad-toggle-${t.id}`}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              onToggleComplete(t.id);
+                            }}
+                            className={`flex-shrink-0 cursor-pointer transition-transform duration-100 active:scale-90 ${cat.accentColor}`}
+                          >
+                            {t.isCompleted ? (
+                              <CheckCircle size={14} className="fill-emerald-50 text-emerald-600" />
+                            ) : (
+                              <Circle size={14} className="opacity-80 hover:opacity-100 text-gray-400 dark:text-gray-500" />
+                            )}
+                          </button>
 
-                        <div className="min-w-0 flex-1">
-                          <p className={`text-xs font-semibold truncate ${
-                            t.isCompleted ? 'line-through text-gray-450 font-normal' : 'text-gray-750'
-                          }`}>
-                            {t.title}
-                          </p>
-                          
-                          {/* Tags indicator */}
-                          <div className="flex items-center space-x-1.5 mt-0.5">
-                            {t.priority === 'HIGH' && (
-                              <span className="text-[8px] bg-rose-50 text-rose-600 px-1 py-0.2 rounded-sm font-bold animate-pulse">高</span>
-                            )}
-                            {t.tags.slice(0, 1).map((tag, i) => (
-                              <span key={i} className="text-[9px] text-gray-400 font-medium font-mono">
-                                #{tag}
-                              </span>
-                            ))}
-                            {t.subtasks.length > 0 && (
-                              <span className="text-[8px] bg-gray-150/80 text-gray-500 font-bold px-1 rounded-sm">
-                                {t.subtasks.filter(s => s.isCompleted).length}/{t.subtasks.length}
-                              </span>
-                            )}
+                          <div className="min-w-0 flex-1">
+                            <p className={`text-[10px] font-bold truncate leading-tight ${
+                              t.isCompleted ? 'line-through text-gray-400 dark:text-gray-500 font-normal shadow-none' : 'text-gray-750 dark:text-gray-200'
+                            }`}>
+                              {t.title}
+                            </p>
                           </div>
+                        </div>
+
+                        {/* Hover edit icon */}
+                        <div className="opacity-0 group-hover/item:opacity-100 transition-opacity flex-shrink-0 text-gray-400 dark:text-gray-500">
+                          <ArrowUpRight size={11} />
                         </div>
                       </div>
 
-                      {/* Go edit hover arrow */}
-                      <div className="opacity-0 group-hover/item:opacity-100 transition-opacity pl-1 text-gray-400 hover:text-gray-700">
-                        <ArrowUpRight size={13} />
-                      </div>
+                      {/* Display subtasks inline */}
+                      {t.subtasks && t.subtasks.length > 0 && (
+                        <div className="mt-1.5 pt-1.5 border-t border-gray-100/65 dark:border-zinc-700/60 space-y-1">
+                          {t.subtasks.map(sub => (
+                            <div
+                              key={sub.id}
+                              draggable={false}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                onToggleSubtask(t.id, sub.id);
+                              }}
+                              className="flex items-center gap-1.5 py-0.5 hover:bg-gray-100/50 dark:hover:bg-zinc-700/50 rounded-sm cursor-pointer transition-colors"
+                            >
+                              <span className="flex-shrink-0">
+                                {sub.isCompleted ? (
+                                  <CheckCircle size={10} className="fill-emerald-50 text-emerald-600" />
+                                ) : (
+                                  <Circle size={10} className="text-gray-350 dark:text-gray-550 hover:text-gray-500" />
+                                )}
+                              </span>
+                              <span className={`text-[9.5px] truncate flex-1 leading-snug ${
+                                sub.isCompleted ? 'line-through text-gray-400 dark:text-gray-500' : 'text-gray-650 dark:text-gray-300 font-medium'
+                              }`}>
+                                {sub.title}
+                              </span>
+                            </div>
+                          ))}
+                        </div>
+                      )}
                     </div>
                   );
                 })
