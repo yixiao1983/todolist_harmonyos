@@ -446,41 +446,8 @@ export function PomodoroHub({
         /* STANDARD VIEW Mode: Presets Library + Outside Control Buttons */
         <div className="space-y-4 animate-fade-in text-left">
           
-          {/* Action Buttons Row outside of standard borderless list */}
-          <div className="flex flex-col sm:flex-row gap-3">
-            {/* 1. New Preset Button */}
-            <button
-              id="btn-trigger-new-preset-modal"
-              onClick={() => {
-                setIsPresetModalOpen(true);
-                if (audioSynth) {
-                  audioSynth.synthesizeHapticChime();
-                }
-              }}
-              className="flex-1 py-3 px-4 bg-[#E8F3FF] dark:bg-blue-950/20 hover:bg-[#D5EAFF] dark:hover:bg-blue-900/30 text-[#007DFF] font-black rounded-2xl text-[11px] transition-all cursor-pointer flex items-center justify-center gap-1.5 border border-blue-200/20 shadow-3xs"
-            >
-              <Plus size={13} className="stroke-[3]" />
-              <span>新建自定义专注预设</span>
-            </button>
-
-            {/* 2. Direct Clock Setup Launcher Button */}
-            <button
-              id="btn-trigger-main-focus"
-              onClick={() => {
-                setIsWorkspaceExpanded(true);
-                if (audioSynth) {
-                  audioSynth.synthesizeSuccessChime();
-                }
-              }}
-              className="flex-1 py-3 px-4 bg-gradient-to-r from-[#007DFF] to-blue-600 hover:from-blue-600 hover:to-blue-700 active:scale-[0.98] text-white font-black rounded-2xl text-[11px] transition-all cursor-pointer text-center shadow-lg shadow-blue-500/15 flex items-center justify-center gap-1.5"
-            >
-              <Timer size={13} className="stroke-[2.5]" />
-              <span>开启极简沙漏番茄时钟 (配专注白噪音)</span>
-            </button>
-          </div>
-
           {/* Presets items library list with absolutely NO surrounding card / border frame wrapper */}
-          <div id="focus-presets-library-container" className="space-y-3 text-left relative pt-2">
+          <div id="focus-presets-library-container" className="space-y-3 text-left relative pt-1">
             <div className="flex items-center gap-1.5 pl-1 bg-transparent">
               <Flame size={12} className="text-orange-500 animate-pulse" />
               <span className="text-[10px] font-extrabold text-gray-400 dark:text-zinc-500 uppercase tracking-widest font-sans">
@@ -490,7 +457,7 @@ export function PomodoroHub({
 
             {presets.length === 0 ? (
               <div className="text-center py-5 text-gray-400 text-[10.5px] bg-gray-50/50 dark:bg-zinc-900/10 border border-gray-150/15 dark:border-zinc-800/20 rounded-2xl">
-                 暂无配置预设。点击上方 【新建自定义专注预设】 一键建立
+                 暂无配置预设。点击下方 【新建自定义专注预设】 一键建立
               </div>
             ) : (
               <div id="presets-list-vertical" className="space-y-1.5 max-h-[220px] overflow-y-auto pr-0.5 no-scrollbar bg-transparent">
@@ -552,6 +519,40 @@ export function PomodoroHub({
               </div>
             )}
           </div>
+
+          {/* Action Buttons Row at the bottom of standard borderless list */}
+          <div className="flex flex-col sm:flex-row gap-3 pt-2">
+            {/* 1. New Preset Button */}
+            <button
+              id="btn-trigger-new-preset-modal"
+              onClick={() => {
+                setIsPresetModalOpen(true);
+                if (audioSynth) {
+                  audioSynth.synthesizeHapticChime();
+                }
+              }}
+              className="flex-1 py-3 px-4 bg-[#E8F3FF] dark:bg-blue-950/20 hover:bg-[#D5EAFF] dark:hover:bg-blue-900/30 text-[#007DFF] font-black rounded-2xl text-[11px] transition-all cursor-pointer flex items-center justify-center gap-1.5 border border-blue-200/20 shadow-3xs animate-fade-in"
+            >
+              <Plus size={13} className="stroke-[3]" />
+              <span>新建自定义专注预设</span>
+            </button>
+
+            {/* 2. Direct Clock Setup Launcher Button */}
+            <button
+              id="btn-trigger-main-focus"
+              onClick={() => {
+                setIsWorkspaceExpanded(true);
+                if (audioSynth) {
+                  audioSynth.synthesizeSuccessChime();
+                }
+              }}
+              className="flex-1 py-3 px-4 bg-gradient-to-r from-[#007DFF] to-blue-600 hover:from-blue-600 hover:to-blue-700 active:scale-[0.98] text-white font-black rounded-2xl text-[11px] transition-all cursor-pointer text-center shadow-lg shadow-blue-500/15 flex items-center justify-center gap-1.5 animate-fade-in"
+            >
+              <Timer size={13} className="stroke-[2.5]" />
+              <span>开启极简沙漏番茄时钟 (配专注白噪音)</span>
+            </button>
+          </div>
+
         </div>
       )}
 

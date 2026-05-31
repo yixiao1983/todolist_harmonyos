@@ -5,7 +5,7 @@
 
 import React, { useState } from 'react';
 import { Task } from '../types';
-import { Calendar, ChevronLeft, ChevronRight, CheckSquare, ListTodo, Layers, Sparkles } from 'lucide-react';
+import { Calendar, ChevronLeft, ChevronRight, ChevronDown, CheckSquare, ListTodo, Layers, Sparkles } from 'lucide-react';
 
 interface CalendarViewProps {
   tasks: Task[];
@@ -18,6 +18,7 @@ type CalendarLevel = 'DAY' | 'WEEK' | 'MONTH' | 'YEAR';
 
 export function CalendarView({ tasks, onEditTask, selectedDate, onSelectDate }: CalendarViewProps) {
   const [currentLevel, setCurrentLevel] = useState<CalendarLevel>('MONTH');
+  const [showLevelDropdown, setShowLevelDropdown] = useState(false);
   
   // Pivot date management (defaulting to current date)
   const [pivotDate, setPivotDate] = useState(() => new Date());
@@ -427,66 +428,91 @@ export function CalendarView({ tasks, onEditTask, selectedDate, onSelectDate }: 
 
   return (
     <div id="calendar-view-container" className="space-y-3.5">
-      {/* Refactored into two elegant rows to ensure perfect readability on mobile */}
-      <div className="flex flex-col gap-2.5 bg-transparent">
-        {/* Row 1: Mode selection buttons (日, 周, 月, 年) */}
-        <div className="flex items-center justify-between bg-gray-50/60 dark:bg-zinc-900/30 p-1.5 rounded-2xl border border-gray-150/20 dark:border-zinc-800/30 text-xs">
-          <span className="text-[10px] font-extrabold uppercase tracking-widest text-gray-400 dark:text-zinc-500 pl-1.5">视图维度</span>
-          <div id="calendar-modes" className="flex bg-gray-202/50 dark:bg-zinc-800/50 p-0.5 rounded-xl">
-            {(['DAY', 'WEEK', 'MONTH', 'YEAR'] as CalendarLevel[]).map(lvl => (
-              <button
-                id={`btn-cal-mode-${lvl}`}
-                key={lvl}
-                onClick={() => setCurrentLevel(lvl)}
-                className={`px-3 py-1 text-[10.5px] font-black rounded-lg transition-all cursor-pointer ${
-                  currentLevel === lvl 
-                    ? 'bg-white dark:bg-zinc-700 text-gray-950 dark:text-white shadow-3xs' 
-                    : 'text-gray-500 hover:text-gray-800 dark:text-zinc-400 dark:hover:text-zinc-200'
-                }`}
-              >
-                {lvl === 'DAY' && '日'}
-                {lvl === 'WEEK' && '周'}
-                {lvl === 'MONTH' && '月'}
-                {lvl === 'YEAR' && '年'}
-              </button>
-            ))}
-          </div>
+      {/* Refactored into a single header controls bar with a popup dropdown for dimension */}
+      <div className="flex items-center justify-between bg-white dark:bg-zinc-900/60 p-2.5 rounded-[1.6rem] border border-gray-150/15 dark:border-zinc-800/40 shadow-3xs relative">
+        <div className="flex items-center gap-1.5 relative bg-transparent">
+          {/* Dropdown Toggle Button, styled to act as icon popup trigger */}
+          <button
+            id="btn-cal-level-dropdown-trigger"
+            onClick={() => setShowLevelDropdown(!showLevelDropdown)}
+            className="flex items-center gap-1.5 p-1 px-3 bg-[#E8F3FF] dark:bg-blue-900/10 hover:bg-[#D5EAFF] dark:hover:bg-blue-800/20 text-[#007DFF] font-black rounded-xl text-[11px] cursor-pointer transition-all border border-blue-105/20"
+          >
+            <Calendar size={13} className="stroke-[2.5]" />
+            <span>
+              {currentLevel === 'DAY' && '日视图'}
+              {currentLevel === 'WEEK' && '周视图'}
+              {currentLevel === 'MONTH' && '月视图'}
+              {currentLevel === 'YEAR' && '年视图'}
+            </span>
+            <ChevronDown size={11} className="stroke-[3]" />
+          </button>
+
+          {/* Popover list options for dimension */}
+          {showLevelDropdown && (
+            <>
+              {/* Backdrop */}
+              <div 
+                className="fixed inset-0 z-10 bg-transparent" 
+                onClick={() => setShowLevelDropdown(false)}
+              />
+              {/* Dropdown Menu */}
+              <div className="absolute top-[35px] left-0 z-20 w-[120px] bg-white dark:bg-zinc-950 border border-gray-150/55 dark:border-zinc-800/80 rounded-2xl p-1.5 shadow-xl animate-fade-in text-left">
+                {[
+                  { lvl: 'DAY' as CalendarLevel, label: '日视图' },
+                  { lvl: 'WEEK' as CalendarLevel, label: '周视图' },
+                  { lvl: 'MONTH' as CalendarLevel, label: '月视图' },
+                  { lvl: 'YEAR' as CalendarLevel, label: '年视图' }
+                ].map(op => (
+                  <button
+                    key={op.lvl}
+                    onClick={() => {
+                      setCurrentLevel(op.lvl);
+                      setShowLevelDropdown(false);
+                    }}
+                    className={`w-full px-3 py-2 text-[11px] font-bold rounded-xl text-left transition-colors cursor-pointer ${
+                      currentLevel === op.lvl 
+                        ? 'bg-[#E8F3FF] dark:bg-blue-950/20 text-[#007DFF]' 
+                        : 'text-gray-650 hover:bg-gray-100 dark:text-zinc-400 dark:hover:bg-zinc-800/50'
+                    }`}
+                  >
+                    {op.label}
+                  </button>
+                ))}
+              </div>
+            </>
+          )}
         </div>
 
-        {/* Row 2: Compact date shifters & navigation */}
-        <div className="flex items-center justify-between bg-gray-50/60 dark:bg-zinc-900/30 p-1.5 rounded-2xl border border-gray-150/20 dark:border-zinc-800/30 text-xs">
-          <span className="text-[10px] font-extrabold uppercase tracking-widest text-gray-400 dark:text-zinc-500 pl-1.5">时间控制</span>
-          <div className="flex items-center space-x-1 font-extrabold text-[11px] text-gray-805">
-            <button 
-              id="btn-cal-prev"
-              onClick={() => changePivotDate('back')}
-              className="p-1 rounded-lg hover:bg-gray-202 dark:hover:bg-zinc-800 bg-transparent cursor-pointer text-gray-500 dark:text-zinc-400"
-            >
-              <ChevronLeft size={14} />
-            </button>
-            <span className="px-1 min-w-[76px] text-center tracking-tight text-[10.5px] font-black text-gray-855 dark:text-gray-200 font-mono">
-              {currentLevel === 'YEAR' && `${pivotDate.getFullYear()}年`}
-              {currentLevel === 'MONTH' && `${pivotDate.getFullYear()}年${pivotDate.getMonth() + 1}月`}
-              {currentLevel === 'WEEK' && `${pivotDate.getMonth() + 1}月 w${Math.ceil(pivotDate.getDate() / 7)}`}
-              {currentLevel === 'DAY' && formatYYYYMMDD(pivotDate).substring(5)}
-            </span>
-            <button 
-              id="btn-cal-next"
-              onClick={() => changePivotDate('forward')}
-              className="p-1 rounded-lg hover:bg-gray-202 dark:hover:bg-zinc-800 bg-transparent cursor-pointer text-gray-500 dark:text-zinc-400"
-            >
-              <ChevronRight size={14} />
-            </button>
-            
-            {/* Today Button shortcut */}
-            <button
-              id="btn-cal-today"
-              onClick={jumpToToday}
-              className="text-[9.5px] font-black text-[#007DFF] hover:bg-blue-105 bg-blue-50/50 dark:bg-blue-900/20 p-1 px-1.5 rounded-lg cursor-pointer"
-            >
-              今
-            </button>
-          </div>
+        {/* Compact date selector (Prev, Label, Next, Today) */}
+        <div className="flex items-center space-x-1.5 bg-transparent">
+          <button 
+            id="btn-cal-prev"
+            onClick={() => changePivotDate('back')}
+            className="p-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-zinc-800 bg-transparent cursor-pointer text-gray-400 hover:text-gray-700 dark:text-zinc-500"
+          >
+            <ChevronLeft size={13} className="stroke-[2.5]" />
+          </button>
+          <span className="px-1 text-center text-[10.5px] font-extrabold text-gray-800 dark:text-gray-200 font-mono tracking-tight">
+            {currentLevel === 'YEAR' && `${pivotDate.getFullYear()}年`}
+            {currentLevel === 'MONTH' && `${pivotDate.getFullYear()}年${pivotDate.getMonth() + 1}月`}
+            {currentLevel === 'WEEK' && `${pivotDate.getMonth() + 1}月 w${Math.ceil(pivotDate.getDate() / 7)}`}
+            {currentLevel === 'DAY' && formatYYYYMMDD(pivotDate).substring(5)}
+          </span>
+          <button 
+            id="btn-cal-next"
+            onClick={() => changePivotDate('forward')}
+            className="p-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-zinc-800 bg-transparent cursor-pointer text-gray-400 hover:text-gray-700 dark:text-zinc-500"
+          >
+            <ChevronRight size={13} className="stroke-[2.5]" />
+          </button>
+          
+          <button
+            id="btn-cal-today"
+            onClick={jumpToToday}
+            className="text-[9.5px] font-black text-[#007DFF] hover:bg-blue-100 dark:hover:bg-blue-900/30 bg-[#E8F3FF]/45 p-1 px-2 rounded-lg cursor-pointer ml-1"
+          >
+            今
+          </button>
         </div>
       </div>
 

@@ -42,7 +42,9 @@ import {
   Settings,
   X,
   ArrowUpDown,
-  SlidersHorizontal
+  SlidersHorizontal,
+  Mic,
+  MicOff
 } from 'lucide-react';
 
 const INITIAL_TASKS: Task[] = [
@@ -262,6 +264,10 @@ export default function App() {
 
   // Interactive Clipboard Bubble simulation
   const [clipboardAlert, setClipboardAlert] = useState<string | null>(null);
+
+  // Voice Speech Parsing State
+  const [isVoiceRecording, setIsVoiceRecording] = useState(false);
+  const [voiceTranscript, setVoiceTranscript] = useState('');
 
   // Focus Timer States
   const [isRunning, setIsRunning] = useState(false);
@@ -503,6 +509,147 @@ export default function App() {
   const handleAddTask = (quadrant: Quadrant = 2) => {
     setEditingTask(null);
     setIsDrawerOpen(true);
+  };
+
+  const parseAndAddTask = (text: string) => {
+    if (!text || !text.trim()) return;
+
+    // Parse Quadrant/Priority
+    let quadrant: Quadrant = 2; // Default important but not urgent
+    let priority: Priority = 'MEDIUM';
+    
+    const textLower = text.toLowerCase();
+    
+    if (textLower.includes('重要且紧急') || textLower.includes('紧急且重要') || textLower.includes('p0') || (textLower.includes('重要') && textLower.includes('紧急'))) {
+      quadrant = 1;
+      priority = 'HIGH';
+    } else if (textLower.includes('重要')) {
+      quadrant = 2;
+      priority = 'HIGH';
+    } else if (textLower.includes('紧急')) {
+      quadrant = 3;
+      priority = 'MEDIUM';
+    } else if (textLower.includes('不重要') || textLower.includes('无所谓') || textLower.includes('日常') || textLower.includes('空闲')) {
+      quadrant = 4;
+      priority = 'LOW';
+    }
+
+    // Parse Due Date
+    let dueDate = new Date().toISOString().split('T')[0]; // Default today
+    if (textLower.includes('明天') || textLower.includes('次日')) {
+      const tomorrow = new Date();
+      tomorrow.setDate(tomorrow.getDate() + 1);
+      dueDate = tomorrow.toISOString().split('T')[0];
+    } else if (textLower.includes('后天')) {
+      const dayAfter = new Date();
+      dayAfter.setDate(dayAfter.getDate() + 2);
+      dueDate = dayAfter.toISOString().split('T')[0];
+    } else if (textLower.includes('下周')) {
+      const nextWeek = new Date();
+      nextWeek.setDate(nextWeek.getDate() + 7);
+      dueDate = nextWeek.toISOString().split('T')[0];
+    }
+
+    // Parse Tags
+    const tags: string[] = ['语音解析'];
+    if (textLower.includes('工作') || textLower.includes('开会') || textLower.includes('会议')) {
+      tags.push('工作');
+    }
+    if (textLower.includes('学习') || textLower.includes('阅读') || textLower.includes('看书') || textLower.includes('复习')) {
+      tags.push('学习');
+    }
+    if (textLower.includes('代码') || textLower.includes('技术') || textLower.includes('联调') || textLower.includes('接口') || textLower.includes('开发')) {
+      tags.push('技术');
+    }
+    if (textLower.includes('运动') || textLower.includes('跑步') || textLower.includes('健身')) {
+      tags.push('健康');
+    }
+
+    // Clean description / title
+    let title = text.replace(/(今天|明天|后天|下周|重要|紧急|不重要|紧急且重要|重要且紧急|🔴|🟡|🔵|🎙️)/g, '').trim();
+    if (title.length < 2) {
+      title = text; // Fallback if too short after stripping
+    }
+
+    const newTask: Task = {
+      id: 'task-voice-' + Date.now(),
+      title: title,
+      description: `🎙️ 语音智能录入解析："${text}"`,
+      isCompleted: false,
+      priority: priority,
+      quadrant: quadrant,
+      tags: tags,
+      dueDate: dueDate,
+      subtasks: [],
+      dependencies: [],
+      focusMinutes: 0,
+      createdAt: new Date().toISOString()
+    };
+
+    const updatedTasksList = [newTask, ...tasks];
+    setTasks(updatedTasksList);
+    localStorage.setItem('hm_next_todos_tasks', JSON.stringify(updatedTasksList));
+
+    // Toast/Alert notification
+    setClipboardAlert(`🎙️ 语音成功解析待办：\n「${title}」\n📅 截止时间: ${dueDate}\n🎯 四象限: 第 ${quadrant} 象限 (${priority === 'HIGH' ? '🔴高' : priority === 'MEDIUM' ? '🟡中' : '🔵低'}优先级)`);
+    
+    if (audioSynthRef.current) {
+      audioSynthRef.current.synthesizeSuccessChime();
+    }
+  };
+
+  const handleStartVoiceInput = () => {
+    const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+    if (!SpeechRecognition) {
+      setClipboardAlert('您的浏览器暂不支持原生语音输入 API，已为您开启手动文本智能解析。');
+      const simulatedText = window.prompt('请输入代办内容（说点什么，比如：“明天下午三点跟进真机联调 重要且紧急”）：', '明天下午三点真机联调 🔴重要且紧急');
+      if (simulatedText) {
+        parseAndAddTask(simulatedText);
+      }
+      return;
+    }
+
+    try {
+      const recognition = new SpeechRecognition();
+      recognition.lang = 'zh-CN';
+      recognition.interimResults = false;
+      recognition.maxAlternatives = 1;
+
+      recognition.onstart = () => {
+        setIsVoiceRecording(true);
+        setVoiceTranscript('正在倾听您的指令...');
+        if (audioSynthRef.current) {
+          audioSynthRef.current.synthesizeHapticChime();
+        }
+      };
+
+      recognition.onerror = (event: any) => {
+        console.error('Speech recognition error', event.error);
+        setIsVoiceRecording(false);
+        // Fallback prompt input on error/unallowed micro permission
+        const simulatedText = window.prompt('语音启动受限，可手动输入文字解析，格式如：“明天下午跟进代码 重要且紧急”', '明天下午跟进代码 🔴重要且紧急');
+        if (simulatedText) {
+          parseAndAddTask(simulatedText);
+        }
+      };
+
+      recognition.onend = () => {
+        setIsVoiceRecording(false);
+      };
+
+      recognition.onresult = (event: any) => {
+        const resultText = event.results[0][0].transcript;
+        if (resultText) {
+          setVoiceTranscript(resultText);
+          parseAndAddTask(resultText);
+        }
+      };
+
+      recognition.start();
+    } catch (err: any) {
+      console.error(err);
+      setIsVoiceRecording(false);
+    }
   };
 
   const handleEditTask = (task: Task) => {
@@ -1167,16 +1314,6 @@ export default function App() {
                   {/* TAB 1: ALL LIST VIEW WITH SWIPE ACTION LOOK */}
                   {activeTab === 'LIST' && (
                     <div id="view-tab-list" className="space-y-4 pb-12">
-                      
-                      {/* Create Task Button card */}
-                      <button
-                        id="btn-trigger-add-task"
-                        onClick={() => handleAddTask(2)}
-                        className="w-full bg-white dark:bg-[#1C1C1E] border border-dashed border-gray-200 dark:border-zinc-805 hover:border-gray-400 dark:hover:border-zinc-700 p-3 rounded-2xl flex items-center justify-center space-x-2 text-gray-400 hover:text-gray-650 transition-colors cursor-pointer shadow-3xs"
-                      >
-                        <Plus size={14} />
-                        <span className="text-[11px] font-bold leading-none">快速添加待办事项</span>
-                      </button>
 
                       {/* Toggle Filters & Sorting */}
                       <div className="flex items-center justify-between px-1">
