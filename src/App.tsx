@@ -227,6 +227,9 @@ export default function App() {
     return localStorage.getItem('hm_show_pomodoro_tab') !== 'false';
   });
   const [isFiltersExpanded, setIsFiltersExpanded] = useState<boolean>(false);
+  const [groupByTagCluster, setGroupByTagCluster] = useState<boolean>(() => {
+    return localStorage.getItem('hm_group_by_tag_cluster') === 'true';
+  });
 
   // Focus Custom Settings State
   const [customFocusTitle, setCustomFocusTitle] = useState('');
@@ -1163,6 +1166,32 @@ export default function App() {
     return filteredTasks.filter(t => t.dueDate && t.dueDate > todayStr);
   }, [filteredTasks, todayStr]);
 
+  const tagClusters = useMemo(() => {
+    const grouped: { [tag: string]: Task[] } = {};
+    filteredTasks.forEach(task => {
+      if (task.tags && task.tags.length > 0) {
+        task.tags.forEach(tg => {
+          const trimmed = tg.trim();
+          if (trimmed) {
+            if (!grouped[trimmed]) {
+              grouped[trimmed] = [];
+            }
+            grouped[trimmed].push(task);
+          }
+        });
+      } else {
+        const noTagLabel = '未分类待办';
+        if (!grouped[noTagLabel]) {
+          grouped[noTagLabel] = [];
+        }
+        grouped[noTagLabel].push(task);
+      }
+    });
+    return Object.entries(grouped)
+      .sort((a, b) => b[1].length - a[1].length)
+      .map(([tagName, taskList]) => ({ tagName, taskList }));
+  }, [filteredTasks]);
+
   const filteredHabits = useMemo(() => {
     // Only show habits when selecting default 'ALL' tag or matching the query search
     if (selectedTag !== 'ALL') return [];
@@ -1325,8 +1354,28 @@ export default function App() {
                           <SlidersHorizontal size={12} className={isFiltersExpanded ? 'text-[#007DFF]' : 'text-gray-400'} />
                           <span>{isFiltersExpanded ? '收起 筛选与排序面板 ▴' : '展开 筛选与排序面板 ▾'}</span>
                           {(sortBy !== 'DEFAULT' || filterPriority !== 'ALL' || filterDueDate !== 'ALL') && (
-                            <span className="w-1.5 h-1.5 rounded-full bg-[#007DFF]" />
+                            <span className="w-1.5 h-1.5 rounded-full bg-[#007DFF] animate-pulse" />
                           )}
+                        </button>
+
+                        <button
+                          id="btn-toggle-tag-clustering"
+                          onClick={() => {
+                            const newVal = !groupByTagCluster;
+                            setGroupByTagCluster(newVal);
+                            localStorage.setItem('hm_group_by_tag_cluster', String(newVal));
+                            if (audioSynthRef.current) {
+                              audioSynthRef.current.synthesizeHapticChime();
+                            }
+                          }}
+                          className={`px-2.5 py-1 rounded-full text-[10px] font-extrabold tracking-wide transition-all duration-200 cursor-pointer flex items-center gap-1.5 border active:scale-95 ${
+                            groupByTagCluster
+                              ? 'bg-[#E8F3FF] dark:bg-blue-950/40 text-[#007DFF] dark:text-blue-450 border-blue-200/20 shadow-3xs'
+                              : 'bg-gray-50 dark:bg-zinc-900/30 text-gray-500 dark:text-zinc-500 border-gray-150/15'
+                          }`}
+                        >
+                          <Tag size={10} className={groupByTagCluster ? 'text-[#007DFF]' : 'text-gray-400'} />
+                          <span>{groupByTagCluster ? '📂 标签群组视图: 开启' : '📁 按时间维度分类'}</span>
                         </button>
                       </div>
 
@@ -1420,102 +1469,185 @@ export default function App() {
                         )}
                       </AnimatePresence>
 
-                      {/* --- Section 1: 已过期未完成的任务列表 (Red Accent) --- */}
-                      {overdueTasks.length > 0 && (
-                        <div className="space-y-2">
-                          <div className="flex items-center gap-1.5 pl-1">
-                            <AlertTriangle size={12} className="text-rose-500 animate-pulse" />
-                            <h4 className="text-[10px] font-extrabold text-rose-500 uppercase tracking-widest">已过期未完成 ({overdueTasks.length})</h4>
-                          </div>
-                          <div className="space-y-2.5">
-                            <AnimatePresence mode="popLayout">
-                              {overdueTasks.map(renderTaskCard)}
-                            </AnimatePresence>
-                          </div>
-                        </div>
-                      )}
-
-                       {/* --- Section 2: 当日任务列表 (Blue Accent) --- */}
-                      <div className="space-y-2">
-                        <div className="flex items-center gap-1.5 pl-1">
-                          <CheckCircle2 className="text-[#007DFF]" size={11} />
-                          <h4 className="text-[10px] font-extrabold text-[#007DFF] uppercase tracking-widest">今日安排任务 ({todayTasks.length})</h4>
-                        </div>
-                        {todayTasks.length === 0 ? (
-                          <div className="p-4 bg-white/40 dark:bg-zinc-805/20 rounded-2xl border border-gray-150/10 dark:border-zinc-800 text-center text-gray-400 dark:text-zinc-650 text-[10px] font-semibold">
-                            今日无代办安排（好好休息，或者添加新安排吧！）
-                          </div>
-                        ) : (
-                          <div className="space-y-2.5">
-                            <AnimatePresence mode="popLayout">
-                              {todayTasks.map(renderTaskCard)}
-                            </AnimatePresence>
-                          </div>
-                        )}
-                      </div>
-
-                      {/* --- Section 3: 每日习惯打卡追踪 (Orange Accent) --- */}
-                      <div className="space-y-2">
-                        <div className="flex items-center gap-1.5 pl-1">
-                          <Flame className="text-orange-500 animate-pulse" size={11} />
-                          <h4 className="text-[10px] font-extrabold text-orange-500 uppercase tracking-widest">今日自律追踪 ({filteredHabits.filter(h => !h.completedDates.includes(todayStr)).length} 待办)</h4>
-                        </div>
-                        {filteredHabits.length === 0 ? (
-                          <div className="p-4 bg-white/40 dark:bg-zinc-805/20 rounded-2xl border border-gray-150/10 dark:border-zinc-800 text-center text-gray-400 dark:text-zinc-650 text-[10px] font-medium leading-relaxed">
-                            暂无习惯。您可以在下方或【习惯】看板配置每日计划
-                          </div>
-                        ) : (
-                          <div className="grid grid-cols-1 gap-2">
-                            {filteredHabits.map(h => {
-                              const isCompletedToday = h.completedDates.includes(todayStr);
+                      {/* --- Sections Layout Switcher --- */}
+                      {groupByTagCluster ? (
+                        /* --- SECTION LAYER: Tag Cluster View (标签群组聚类视图) --- */
+                        <div className="space-y-4 animate-fade-in text-left">
+                          {tagClusters.length === 0 ? (
+                            <div className="p-8 bg-white/40 dark:bg-zinc-805/20 rounded-3xl border border-gray-150/10 dark:border-zinc-800 text-center text-gray-400 dark:text-zinc-650 text-xs font-semibold animate-fade-in">
+                              📇 暂无任何满足条件的任务标签聚类
+                            </div>
+                          ) : (
+                            tagClusters.map(({ tagName, taskList }) => {
+                              const isUnclassified = tagName === '未分类待办';
                               return (
-                                <div key={h.id} className="flex items-center justify-between p-3 bg-white dark:bg-[#1C1C1E] rounded-2xl border border-gray-150/40 dark:border-zinc-800 hover:bg-gray-50/50 dark:hover:bg-zinc-800/40 transition-all shadow-3xs">
-                                  <div className="flex items-center gap-3 bg-transparent text-left">
-                                    <button
-                                      id={`btn-habitcheck-${h.id}`}
-                                      onClick={() => handleToggleHabitToday(h.id)}
-                                      className="cursor-pointer transition-all active:scale-90"
-                                    >
-                                      {isCompletedToday ? (
-                                        <CheckCircle2 size={16} className="fill-emerald-50 text-emerald-600 dark:fill-emerald-950/20" />
+                                <div key={tagName} className="space-y-2">
+                                  <div className="flex items-center justify-between pl-1 bg-transparent pr-1">
+                                    <div className="flex items-center gap-1.5 bg-transparent">
+                                      {isUnclassified ? (
+                                        <FolderOpen size={11} className="text-gray-400" />
                                       ) : (
-                                        <Circle size={16} className="text-gray-350 dark:text-zinc-600 hover:text-gray-500" />
+                                        <Tag size={11} className="text-[#007DFF] dark:text-blue-400 animate-pulse" />
                                       )}
-                                    </button>
-                                    <span className={`text-[11px] font-bold ${isCompletedToday ? 'line-through text-gray-400 dark:text-zinc-550 font-normal' : 'text-gray-800 dark:text-gray-200'}`}>
-                                      {h.title}
-                                    </span>
+                                      <h4 className={`text-[10px] font-extrabold uppercase tracking-widest ${isUnclassified ? 'text-gray-400 dark:text-zinc-500' : 'text-[#007DFF] dark:text-blue-400'}`}>
+                                        {tagName}
+                                      </h4>
+                                      <span className="text-[8.5px] font-extrabold bg-gray-100 dark:bg-zinc-800/80 text-gray-500 dark:text-zinc-400 px-1.5 py-0.2 rounded-full">
+                                        {taskList.length} 个待办
+                                      </span>
+                                    </div>
                                   </div>
-                                  <div className="flex items-center gap-2 bg-transparent">
-                                    <span className="text-[8.5px] bg-emerald-50 dark:bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 px-2 py-0.5 rounded-full font-bold">
-                                      🔥 累计 {h.completedDates.length} 天
-                                    </span>
+                                  <div className="space-y-2.5">
+                                    <AnimatePresence mode="popLayout">
+                                      {taskList.map(renderTaskCard)}
+                                    </AnimatePresence>
                                   </div>
                                 </div>
                               );
-                            })}
-                          </div>
-                        )}
-                      </div>
+                            })
+                          )}
 
-                      {/* --- Section 4: 其他未来时间的任务列表 (Purple Accent) --- */}
-                      <div className="space-y-2">
-                        <div className="flex items-center gap-1.5 pl-1">
-                          <FolderOpen size={11} className="text-indigo-500 animate-pulse" />
-                          <h4 className="text-[10px] font-extrabold text-indigo-650 dark:text-indigo-400 uppercase tracking-widest font-sans">后续安排任务 ({futureTasks.length})</h4>
+                          {/* Keep habits on cluster layout as well under its dedicated section */}
+                          {filteredHabits.length > 0 && (
+                            <div className="space-y-2 pt-2 border-t border-gray-150/15 dark:border-zinc-800/20">
+                              <div className="flex items-center gap-1.5 pl-1">
+                                <Flame className="text-orange-500 animate-pulse" size={11} />
+                                <h4 className="text-[10px] font-extrabold text-orange-500 uppercase tracking-widest">今日自律追踪 ({filteredHabits.filter(h => !h.completedDates.includes(todayStr)).length} 待办)</h4>
+                              </div>
+                              <div className="grid grid-cols-1 gap-2">
+                                {filteredHabits.map(h => {
+                                  const isCompletedToday = h.completedDates.includes(todayStr);
+                                  return (
+                                    <div key={h.id} className="flex items-center justify-between p-3 bg-white dark:bg-[#1C1C1E] rounded-2xl border border-gray-150/40 dark:border-zinc-800 hover:bg-gray-50/50 dark:hover:bg-zinc-800/40 transition-all shadow-3xs">
+                                      <div className="flex items-center gap-3 bg-transparent text-left">
+                                        <button
+                                          id={`btn-habitcheck-clustered-${h.id}`}
+                                          onClick={() => handleToggleHabitToday(h.id)}
+                                          className="cursor-pointer transition-all active:scale-90"
+                                        >
+                                          {isCompletedToday ? (
+                                            <CheckCircle2 size={16} className="fill-emerald-50 text-emerald-600 dark:fill-emerald-950/20" />
+                                          ) : (
+                                            <Circle size={16} className="text-gray-350 dark:text-zinc-600 hover:text-gray-500" />
+                                          )}
+                                        </button>
+                                        <span className={`text-[11px] font-bold ${isCompletedToday ? 'line-through text-gray-400 dark:text-zinc-550 font-normal' : 'text-gray-800 dark:text-gray-200'}`}>
+                                          {h.title}
+                                        </span>
+                                      </div>
+                                      <div className="flex items-center gap-2 bg-transparent">
+                                        <span className="text-[8.5px] bg-emerald-50 dark:bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 px-2 py-0.5 rounded-full font-bold">
+                                          🔥 累计 {h.completedDates.length} 天
+                                        </span>
+                                      </div>
+                                    </div>
+                                  );
+                                })}
+                              </div>
+                            </div>
+                          )}
                         </div>
-                        {futureTasks.length === 0 ? (
-                          <div className="p-4 bg-white/40 dark:bg-zinc-805/20 rounded-2xl border border-gray-150/10 dark:border-zinc-800 text-center text-gray-400 dark:text-zinc-650 text-[10px] font-semibold">
-                            后续无多余时间代办安排
+                      ) : (
+                        /* --- DEFAULT CHRONOLOGICAL DIMENSION VIEWS --- */
+                        <>
+                          {/* --- Section 1: 已过期未完成的任务列表 (Red Accent) --- */}
+                          {overdueTasks.length > 0 && (
+                            <div className="space-y-2">
+                              <div className="flex items-center gap-1.5 pl-1">
+                                <AlertTriangle size={12} className="text-rose-500 animate-pulse" />
+                                <h4 className="text-[10px] font-extrabold text-rose-500 uppercase tracking-widest">已过期未完成 ({overdueTasks.length})</h4>
+                              </div>
+                              <div className="space-y-2.5">
+                                <AnimatePresence mode="popLayout">
+                                  {overdueTasks.map(renderTaskCard)}
+                                </AnimatePresence>
+                              </div>
+                            </div>
+                          )}
+
+                          {/* --- Section 2: 当日任务列表 (Blue Accent) --- */}
+                          <div className="space-y-2">
+                            <div className="flex items-center gap-1.5 pl-1">
+                              <CheckCircle2 className="text-[#007DFF]" size={11} />
+                              <h4 className="text-[10px] font-extrabold text-[#007DFF] uppercase tracking-widest">今日安排任务 ({todayTasks.length})</h4>
+                            </div>
+                            {todayTasks.length === 0 ? (
+                              <div className="p-4 bg-white/40 dark:bg-zinc-805/20 rounded-2xl border border-gray-150/10 dark:border-zinc-800 text-center text-gray-400 dark:text-zinc-650 text-[10px] font-semibold">
+                                今日无代办安排（好好休息，或者添加新安排吧！）
+                              </div>
+                            ) : (
+                              <div className="space-y-2.5">
+                                <AnimatePresence mode="popLayout">
+                                  {todayTasks.map(renderTaskCard)}
+                                </AnimatePresence>
+                              </div>
+                            )}
                           </div>
-                        ) : (
-                          <div className="space-y-2.5">
-                            <AnimatePresence mode="popLayout">
-                              {futureTasks.map(renderTaskCard)}
-                            </AnimatePresence>
+
+                          {/* --- Section 3: 每日习惯打卡追踪 (Orange Accent) --- */}
+                          <div className="space-y-2">
+                            <div className="flex items-center gap-1.5 pl-1">
+                              <Flame className="text-orange-500 animate-pulse" size={11} />
+                              <h4 className="text-[10px] font-extrabold text-orange-500 uppercase tracking-widest">今日自律追踪 ({filteredHabits.filter(h => !h.completedDates.includes(todayStr)).length} 待办)</h4>
+                            </div>
+                            {filteredHabits.length === 0 ? (
+                              <div className="p-4 bg-white/40 dark:bg-zinc-805/20 rounded-2xl border border-gray-150/10 dark:border-zinc-800 text-center text-gray-400 dark:text-zinc-650 text-[10px] font-medium leading-relaxed">
+                                暂无习惯。您可以在下方或【习惯】看板配置每日计划
+                              </div>
+                            ) : (
+                              <div className="grid grid-cols-1 gap-2">
+                                {filteredHabits.map(h => {
+                                  const isCompletedToday = h.completedDates.includes(todayStr);
+                                  return (
+                                    <div key={h.id} className="flex items-center justify-between p-3 bg-white dark:bg-[#1C1C1E] rounded-2xl border border-gray-150/40 dark:border-zinc-800 hover:bg-gray-50/50 dark:hover:bg-zinc-800/40 transition-all shadow-3xs">
+                                      <div className="flex items-center gap-3 bg-transparent text-left">
+                                        <button
+                                          id={`btn-habitcheck-${h.id}`}
+                                          onClick={() => handleToggleHabitToday(h.id)}
+                                          className="cursor-pointer transition-all active:scale-90"
+                                        >
+                                          {isCompletedToday ? (
+                                            <CheckCircle2 size={16} className="fill-emerald-50 text-emerald-600 dark:fill-emerald-950/20" />
+                                          ) : (
+                                            <Circle size={16} className="text-gray-350 dark:text-zinc-600 hover:text-gray-500" />
+                                          )}
+                                        </button>
+                                        <span className={`text-[11px] font-bold ${isCompletedToday ? 'line-through text-gray-400 dark:text-zinc-550 font-normal' : 'text-gray-800 dark:text-gray-200'}`}>
+                                          {h.title}
+                                        </span>
+                                      </div>
+                                      <div className="flex items-center gap-2 bg-transparent">
+                                        <span className="text-[8.5px] bg-emerald-50 dark:bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 px-2 py-0.5 rounded-full font-bold">
+                                          🔥 累计 {h.completedDates.length} 天
+                                        </span>
+                                      </div>
+                                    </div>
+                                  );
+                                })}
+                              </div>
+                            )}
                           </div>
-                        )}
-                      </div>
+
+                          {/* --- Section 4: 其他未来时间的任务列表 (Purple Accent) --- */}
+                          <div className="space-y-2">
+                            <div className="flex items-center gap-1.5 pl-1">
+                              <FolderOpen size={11} className="text-indigo-500 animate-pulse" />
+                              <h4 className="text-[10px] font-extrabold text-indigo-650 dark:text-indigo-400 uppercase tracking-widest font-sans">后续安排任务 ({futureTasks.length})</h4>
+                            </div>
+                            {futureTasks.length === 0 ? (
+                              <div className="p-4 bg-white/40 dark:bg-zinc-805/20 rounded-2xl border border-gray-150/10 dark:border-zinc-800 text-center text-gray-400 dark:text-zinc-650 text-[10px] font-semibold">
+                                后续无多余时间代办安排
+                              </div>
+                            ) : (
+                              <div className="space-y-2.5">
+                                <AnimatePresence mode="popLayout">
+                                  {futureTasks.map(renderTaskCard)}
+                                </AnimatePresence>
+                              </div>
+                            )}
+                          </div>
+                        </>
+                      )}
 
                     </div>
                   )}
