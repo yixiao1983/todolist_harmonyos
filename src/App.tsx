@@ -1726,7 +1726,7 @@ export default function App() {
 
                   {/* TAB 4: POMORODO HUB FOCUS VIEW */}
                   {activeTab === 'POMODORO' && (
-                    <div id="view-tab-pomodoro" className="h-full">
+                    <div id="view-tab-pomodoro" className="h-full overflow-y-auto no-scrollbar pb-10">
                       <PomodoroHub
                         tasks={tasks}
                         isRunning={isRunning}
