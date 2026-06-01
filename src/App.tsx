@@ -7,7 +7,7 @@ import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { Task, Quadrant, Priority, ProjectTemplate, FocusMode, Habit, QuadrantCategory } from './types';
 import { FocusAudioSynthesizer } from './utils/audio';
 import { DEFAULT_TEMPLATES } from './utils/templates';
-import { MockDevice } from './components/MockDevice';
+// MockDevice removed as requested
 import { WidgetPlayground } from './components/WidgetPlayground';
 import { TaskDrawer } from './components/TaskDrawer';
 import { TaskQuadrant } from './components/TaskQuadrant';
@@ -37,6 +37,7 @@ import {
   Sparkles,
   RefreshCw,
   FolderOpen,
+  Clipboard,
   Sun,
   Moon,
   Settings,
@@ -1206,22 +1207,49 @@ export default function App() {
   };
 
   return (
-    <div id="full-page" className={`min-h-screen py-8 px-4 flex items-center justify-center font-sans tracking-tight transition-colors duration-300 ${darkMode ? 'dark bg-[#121214] text-[#E5E5E7]' : 'bg-[#F0F2F5] text-gray-800'}`}>
+    <div id="full-page" className={`h-screen w-screen flex items-center justify-center font-sans tracking-tight transition-colors duration-300 overflow-hidden ${darkMode ? 'dark bg-[#121214] text-[#E5E5E7]' : 'bg-[#F0F2F5] text-gray-800'}`}>
       
-      {/* HarmonyOS Mock Hardware Frame */}
-      <MockDevice
-        isTimerActive={isRunning}
-        timerLabel={formatTimerLabel()}
-        isPaused={isPaused}
-        timerTitle={tasks.find(t => t.id === activeTaskId)?.title || customFocusTitle || '极简专注'}
-        onPauseToggle={handlePauseToggle}
-        onStopTimer={handleStopTimer}
-        isHomeScreen={isHomeScreen}
-        onToggleHomeScreen={() => setIsHomeScreen(!isHomeScreen)}
-        clipboardItem={clipboardAlert}
-        onImportClipboard={handleImportClipboardText}
-        onClearClipboard={() => setClipboardAlert(null)}
+      {/* Fully responsive embedded app viewport container */}
+      <div 
+        id="app-embedded-container"
+        className={`w-full h-full relative flex flex-col md:max-w-2xl lg:max-w-4xl md:h-[94vh] md:rounded-[2.25rem] md:shadow-2xl md:border transition-all overflow-hidden ${
+          darkMode 
+            ? 'bg-[#1C1C1E] border-zinc-800/80 md:shadow-black/40' 
+            : 'bg-[#EDEFF2] border-gray-200/50 md:shadow-gray-300/40'
+        }`}
       >
+        {/* Play matching clipboard paste banner inside embedded viewport */}
+        {clipboardAlert && (
+          <div id="paste-alert-bubble" className="absolute top-14 left-6 right-6 bg-white/95 dark:bg-zinc-900/95 backdrop-blur-md rounded-2xl p-2.5 border border-blue-150/35 dark:border-zinc-800 shadow-xl z-50 transition-all flex items-center justify-between animate-fade-in animate-bounce">
+            <div className="flex items-center space-x-2 bg-transparent text-left">
+              <div className="p-1.5 rounded-lg bg-blue-50 dark:bg-blue-950/40 text-[#007DFF]">
+                <Clipboard size={14} />
+              </div>
+              <div className="min-w-0 bg-transparent flex flex-col text-left">
+                <span className="block text-[9px] text-gray-400 dark:text-zinc-500 font-extrabold uppercase">检测到剪贴板有时间待办</span>
+                <p className="text-xs text-gray-755 dark:text-gray-200 font-semibold truncate max-w-[150px] md:max-w-[280px] leading-tight">{clipboardAlert}</p>
+              </div>
+            </div>
+            <div className="flex items-center space-x-1.5 bg-transparent flex-shrink-0">
+              <button
+                id="paste-btn-close"
+                onClick={() => setClipboardAlert(null)}
+                className="p-1 px-2 rounded-lg bg-gray-100 dark:bg-zinc-800 text-gray-500 dark:text-zinc-400 hover:bg-gray-200 dark:hover:bg-zinc-700 text-[10px] font-bold cursor-pointer transition-colors"
+              >
+                忽略
+              </button>
+              <button
+                id="paste-btn-apply"
+                onClick={handleImportClipboardText}
+                className="p-1 px-2.5 rounded-lg bg-[#007DFF] text-white hover:bg-[#0066CC] dark:bg-blue-600 dark:hover:bg-blue-700 text-[10px] font-bold flex items-center gap-0.5 cursor-pointer transition-all"
+              >
+                <Plus size={10} />
+                导入
+              </button>
+            </div>
+          </div>
+        )}
+
         {isHomeScreen ? (
           // DESKTOP HOMESCREEN WIDGET PLAYGROUND
           <WidgetPlayground
@@ -1238,7 +1266,7 @@ export default function App() {
           />
         ) : (
           // THE APP CORE FULL SCREEN
-          <div id="app-viewport" className="flex-1 flex flex-col justify-between overflow-hidden bg-[#EDEFF2] h-full">
+          <div id="app-viewport" className="flex-1 flex flex-col justify-between overflow-hidden bg-[#EDEFF2] dark:bg-[#121214] h-full relative">
             
             {/* Nav Header Row */}
             <div className="px-5 pt-3.5 pb-2.5 bg-white/70 backdrop-blur-md border-b border-gray-200/40 space-y-3">
@@ -1330,7 +1358,7 @@ export default function App() {
             </div>
 
             {/* Scrollable Viewport Inner Section */}
-            <div id="viewport-pane-scroller" className="flex-1 p-4 overflow-y-auto max-h-[515px]">
+            <div id="viewport-pane-scroller" className="flex-1 p-4 overflow-y-auto no-scrollbar">
               <AnimatePresence mode="wait">
                 <motion.div
                   key={activeTab}
@@ -1950,12 +1978,12 @@ export default function App() {
               damping: 20
             }}
             title="快捷创建任务"
-            className="absolute bottom-16 right-5 w-12 h-12 bg-[#007DFF] hover:bg-[#0066CC] dark:bg-blue-600 dark:hover:bg-blue-700 text-white rounded-full shadow-lg hover:shadow-xl flex items-center justify-center cursor-pointer z-30 border border-white/10"
+            className="absolute bottom-18 right-5 w-12 h-12 bg-[#007DFF] hover:bg-[#0066CC] dark:bg-blue-600 dark:hover:bg-blue-700 text-white rounded-full shadow-lg hover:shadow-xl flex items-center justify-center cursor-pointer z-30 border border-white/10"
           >
             <Plus size={22} className="stroke-[3]" />
           </motion.button>
         )}
-      </MockDevice>
+      </div>
 
       {/* Template Import Modal triggered from header and widgets list */}
       <AnimatePresence>
