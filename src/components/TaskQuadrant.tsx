@@ -13,6 +13,7 @@ interface TaskQuadrantProps {
   onEditTask: (task: Task) => void;
   onAddTaskInQuadrant: (quadrant: Quadrant) => void;
   onToggleSubtask: (taskId: string, subtaskId: string) => void;
+  onToggleSubtasksCollapse: (taskId: string) => void;
   onUpdateTaskQuadrant: (taskId: string, quadrant: Quadrant) => void;
   quadrantCategories: QuadrantCategory[];
 }
@@ -23,6 +24,7 @@ export function TaskQuadrant({
   onEditTask,
   onAddTaskInQuadrant,
   onToggleSubtask,
+  onToggleSubtasksCollapse,
   onUpdateTaskQuadrant,
   quadrantCategories
 }: TaskQuadrantProps) {
@@ -232,30 +234,42 @@ export function TaskQuadrant({
                         {/* Display subtasks inline */}
                         {t.subtasks && t.subtasks.length > 0 && (
                           <div className="mt-1.5 pt-1.5 border-t border-gray-100/65 dark:border-zinc-700/60 space-y-1">
-                            {t.subtasks.map(sub => (
-                              <div
-                                key={sub.id}
-                                draggable={false}
+                            {!t.isSubtasksCollapsed ? (
+                              t.subtasks.map(sub => (
+                                <div
+                                  key={sub.id}
+                                  draggable={false}
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    onToggleSubtask(t.id, sub.id);
+                                  }}
+                                  className="flex items-center gap-1.5 py-0.5 hover:bg-gray-100/50 dark:hover:bg-zinc-700/50 rounded-sm cursor-pointer transition-colors"
+                                >
+                                  <span className="flex-shrink-0">
+                                    {sub.isCompleted ? (
+                                      <CheckCircle size={10} className="fill-emerald-50 text-emerald-600" />
+                                    ) : (
+                                      <Circle size={10} className="text-gray-350 dark:text-gray-550 hover:text-gray-500" />
+                                    )}
+                                  </span>
+                                  <span className={`text-[9.5px] truncate flex-1 leading-snug ${
+                                    sub.isCompleted ? 'line-through text-gray-400 dark:text-gray-500' : 'text-gray-650 dark:text-gray-300 font-medium'
+                                  }`}>
+                                    {sub.title}
+                                  </span>
+                                </div>
+                              ))
+                            ) : (
+                              <div 
+                                className="text-[8.5px] text-gray-400 dark:text-zinc-500 cursor-pointer flex items-center gap-1 hover:text-gray-600 transition-colors py-0.5"
                                 onClick={(e) => {
                                   e.stopPropagation();
-                                  onToggleSubtask(t.id, sub.id);
+                                  onToggleSubtasksCollapse(t.id);
                                 }}
-                                className="flex items-center gap-1.5 py-0.5 hover:bg-gray-100/50 dark:hover:bg-zinc-700/50 rounded-sm cursor-pointer transition-colors"
                               >
-                                <span className="flex-shrink-0">
-                                  {sub.isCompleted ? (
-                                    <CheckCircle size={10} className="fill-emerald-50 text-emerald-600" />
-                                  ) : (
-                                    <Circle size={10} className="text-gray-350 dark:text-gray-550 hover:text-gray-500" />
-                                  )}
-                                </span>
-                                <span className={`text-[9.5px] truncate flex-1 leading-snug ${
-                                  sub.isCompleted ? 'line-through text-gray-400 dark:text-gray-500' : 'text-gray-650 dark:text-gray-300 font-medium'
-                                }`}>
-                                  {sub.title}
-                                </span>
+                                <span>已折叠 {t.subtasks.length} 个子任务 (已完成 {t.subtasks.filter(s => s.isCompleted).length})</span>
                               </div>
-                            ))}
+                            )}
                           </div>
                         )}
                       </div>

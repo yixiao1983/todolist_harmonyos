@@ -13,6 +13,9 @@ import { TaskDrawer } from './components/TaskDrawer';
 import { TaskQuadrant } from './components/TaskQuadrant';
 import { CalendarView } from './components/CalendarView';
 import { PomodoroHub } from './components/PomodoroHub';
+import { SettingsView } from './components/SettingsView';
+import { PrivacyModal } from './components/PrivacyModal';
+import { PolicyViewer } from './components/PolicyViewer';
 import { motion, AnimatePresence } from 'motion/react';
 import { getLocalISODate } from './utils/date';
 import { 
@@ -49,8 +52,11 @@ import {
   MicOff,
   Mail,
   Loader,
-  Send
+  Send,
+  ChevronDown
 } from 'lucide-react';
+
+export type TabType = 'LIST' | 'HABIT' | 'QUADRANT' | 'CALENDAR' | 'POMODORO' | 'TEMPLATES' | 'SETTINGS';
 
 const INITIAL_TASKS: Task[] = [
   {
@@ -192,7 +198,7 @@ export default function App() {
 
   // Navigation tabs and layout states
   const [isHomeScreen, setIsHomeScreen] = useState(false);
-  const [activeTab, setActiveTab] = useState<'LIST' | 'HABIT' | 'QUADRANT' | 'CALENDAR' | 'POMODORO' | 'TEMPLATES'>('LIST');
+  const [activeTab, setActiveTab] = useState<TabType>('LIST');
   const [selectedDate, setSelectedDate] = useState(() => getLocalISODate());
 
   const [showHabitsTab, setShowHabitsTab] = useState<boolean>(() => {
@@ -258,6 +264,10 @@ export default function App() {
   const [focusMode, setFocusMode] = useState<FocusMode>('POMODORO');
   const [activeTaskId, setActiveTaskId] = useState<string | undefined>(undefined);
 
+  // AppGallery Compliance States
+  const [hasAgreedPrivacy, setHasAgreedPrivacy] = useState(true);
+  const [policyTypeToShow, setPolicyTypeToShow] = useState<'USER' | 'PRIVACY' | null>(null);
+
   // Drawer / Editing panel states
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
   const [editingTask, setEditingTask] = useState<Task | null>(null);
@@ -274,29 +284,27 @@ export default function App() {
   const audioSynthRef = useRef<FocusAudioSynthesizer | null>(null);
   const stopwatchIntervalRef = useRef<number | null>(null);
 
-  // 导航历史：支持鸿蒙左滑返回手势
-  type TabType = 'LIST' | 'HABIT' | 'QUADRANT' | 'CALENDAR' | 'POMODORO' | 'TEMPLATES';
-  const navigateTo = (tab: TabType) => {
-    if (tab === activeTab) return;
-    // 写入浏览器历史，让 ArkWeb 的 backward() 可以感知
-    history.pushState({ tab }, '', `#${tab.toLowerCase()}`);
-    setActiveTab(tab);
+  // Removed Native Notification code per user request
+
+  // Exit App (from Native)
+  const exitNativeApp = () => {
+    if ((window as any).hmAppControl && (window as any).hmAppControl.exitApp) {
+      (window as any).hmAppControl.exitApp();
+    }
   };
 
   // 监听浏览器 popstate 事件（鸿蒙左滑触发 controller.backward() 时会产生）
   useEffect(() => {
     const handlePopState = (e: PopStateEvent) => {
-      // 优先关闭弹窗/抽屉
       if (isDrawerOpen) {
         setIsDrawerOpen(false);
         setEditingTask(null);
-        // 阻止实际的页面后退，重新 push 当前状态
         history.pushState({ tab: activeTab }, '', `#${activeTab.toLowerCase()}`);
         return;
       }
-      if (isSettingsOpen) {
-        setIsSettingsOpen(false);
-        history.pushState({ tab: activeTab }, '', `#${activeTab.toLowerCase()}`);
+      if (activeTab === 'SETTINGS') {
+        setActiveTab('LIST');
+        history.pushState({ tab: 'LIST' }, '', `#list`);
         return;
       }
       if (isTemplateModalOpen) {
@@ -316,17 +324,14 @@ export default function App() {
         setIsFeedbackModalOpen(false);
         return;
       }
-      // 回退到上一个 Tab
       if (e.state && e.state.tab) {
         setActiveTab(e.state.tab as TabType);
       } else {
-        // 历史栈已空，回到默认首页
         setActiveTab('LIST');
       }
     };
 
     window.addEventListener('popstate', handlePopState);
-    // 初始化当前页面的历史状态
     history.replaceState({ tab: activeTab }, '', `#${activeTab.toLowerCase()}`);
 
     return () => {
@@ -336,23 +341,21 @@ export default function App() {
 
   // Initialize data on mount
   useEffect(() => {
-    // Clear old prototype mock data (v2 flush)
     if (!Storage.getItem('hm_next_v3_cleared')) {
       Storage.clear();
       Storage.setItem('hm_next_v3_cleared', 'true');
     }
 
-    // Lazy instance of FocusAudioSynthesizer
     if (!audioSynthRef.current) {
       audioSynthRef.current = new FocusAudioSynthesizer();
     }
 
-    // Load Local Tasks
     const localTasks = Storage.getItem('hm_next_todos_tasks');
     if (localTasks) {
       try {
         setTasks(JSON.parse(localTasks));
       } catch (e) {
+        console.error("Failed to parse tasks");
         setTasks(INITIAL_TASKS);
       }
     } else {
@@ -360,7 +363,14 @@ export default function App() {
       Storage.setItem('hm_next_todos_tasks', JSON.stringify(INITIAL_TASKS));
     }
 
-    // Load Local Templates
+    // Check Privacy Agreement
+    const agreed = Storage.getItem('hm_next_todos_privacy_agreed');
+    if (agreed !== 'true') {
+      setHasAgreedPrivacy(false);
+    } else {
+    // requestNativeNotification(); // Removed per user request
+    }
+
     const localTemplates = Storage.getItem('hm_next_todos_templates');
     if (localTemplates) {
       try {
@@ -373,7 +383,6 @@ export default function App() {
       Storage.setItem('hm_next_todos_templates', JSON.stringify(DEFAULT_TEMPLATES));
     }
 
-    // Load Local Habits
     const localHabits = Storage.getItem('hm_next_todos_habits');
     if (localHabits) {
       try {
@@ -386,7 +395,6 @@ export default function App() {
       Storage.setItem('hm_next_todos_habits', JSON.stringify(INITIAL_HABITS));
     }
 
-    // Load Local Quadrants
     const localQuadrants = Storage.getItem('hm_next_todos_quadrants');
     if (localQuadrants) {
       try {
@@ -399,8 +407,6 @@ export default function App() {
       Storage.setItem('hm_next_todos_quadrants', JSON.stringify(DEFAULT_QUADRANTS));
     }
 
-
-    // 暴露全局方法供鸿蒙原生层处理卡片 router action 跳转意图
     (window as any).__handleCardAction = (payloadStr: string) => {
       try {
         const payload = JSON.parse(payloadStr);
@@ -454,7 +460,6 @@ export default function App() {
     if (isRunning && !isPaused) {
       stopwatchIntervalRef.current = window.setInterval(() => {
         if (focusMode === 'STOPWATCH') {
-          // stopwatch counts upwards
           setTimeRemaining(prev => {
             const next = prev - 1;
             if (next <= 0) {
@@ -464,7 +469,6 @@ export default function App() {
             return next;
           });
         } else {
-          // countdown counts downwards
           setTimeRemaining(prev => {
             if (prev <= 1) {
               handleSessionCompleted();
@@ -493,17 +497,12 @@ export default function App() {
     setIsRunning(false);
     setIsPaused(false);
     
-    // Call native API to cancel ongoing notification and show completion
-    if ((window as any).hmNotification) {
-      (window as any).hmNotification.cancelPomodoroNotification(true);
-    }
+    // Pomodoro notifications have been removed
     
-    // Synthesize satisfying alarm Chime wave representing Linear Haptic bells
     if (audioSynthRef.current) {
       audioSynthRef.current.synthesizeHapticChime();
     }
 
-    // Accumulate task focusing minutes
     if (activeTaskId) {
       const minutesSpent = Math.max(1, Math.round(totalDuration / 60));
       const updated = tasks.map(t => {
@@ -520,7 +519,6 @@ export default function App() {
 
   // 1. Task Operations (Basic CRUD & features)
   const handleToggleComplete = (id: string) => {
-    // Find if task is locked by unfinished dependencies
     const targetTask = tasks.find(t => t.id === id);
     if (targetTask && !targetTask.isCompleted && targetTask.dependencies.length > 0) {
       const pendingDeps = tasks.filter(t => targetTask.dependencies.includes(t.id) && !t.isCompleted);
@@ -532,7 +530,6 @@ export default function App() {
 
     const updated = tasks.map(t => {
       if (t.id === id) {
-        // Play click indicator audio haptic chime
         if (audioSynthRef.current && !t.isCompleted) {
           audioSynthRef.current.synthesizeHapticChime();
         }
@@ -555,10 +552,21 @@ export default function App() {
           }
           return s;
         });
-        return { ...t, subtasks: updatedSubtasks };
+        
+        const allCompleted = updatedSubtasks.length > 0 && updatedSubtasks.every(s => s.isCompleted);
+        const autoCollapse = allCompleted ? true : t.isSubtasksCollapsed;
+        
+        return { ...t, subtasks: updatedSubtasks, isSubtasksCollapsed: autoCollapse };
       }
       return t;
     });
+    handleSaveTasks(updated);
+  };
+
+  const handleToggleSubtasksCollapse = (taskId: string) => {
+    const updated = tasks.map(t => 
+      t.id === taskId ? { ...t, isSubtasksCollapsed: !t.isSubtasksCollapsed } : t
+    );
     handleSaveTasks(updated);
   };
 
@@ -566,7 +574,6 @@ export default function App() {
     const updated = tasks.map(t => {
       if (t.id === taskId) {
         if (t.quadrant === targetQuadrant) return t;
-        // Optionally play haptic sound on successful drop
         if (audioSynthRef.current) {
           audioSynthRef.current.synthesizeHapticChime();
         }
@@ -588,16 +595,14 @@ export default function App() {
   };
 
   // ========== NLP 语义智能解析引擎 ==========
-  // 从自然语言文本中提取：时间、日期、优先级、标签、标题
   const nlpParseText = (text: string) => {
     const now = new Date();
-    let dueDate = getLocalISODate(now); // Default today
-    let dueTime = ''; // HH:MM format
+    let dueDate = getLocalISODate(now); 
+    let dueTime = ''; 
     let quadrant: Quadrant = 2;
     let priority: Priority = 'MEDIUM';
     const tags: string[] = [];
     
-    // ---- 1. 解析优先级/象限 ----
     if (text.includes('重要且紧急') || text.includes('紧急且重要') || text.includes('p0') || text.includes('P0') || (text.includes('重要') && text.includes('紧急'))) {
       quadrant = 1; priority = 'HIGH';
     } else if (text.includes('重要')) {
@@ -608,7 +613,6 @@ export default function App() {
       quadrant = 4; priority = 'LOW';
     }
 
-    // ---- 2. 解析日期 ----
     if (text.includes('明天') || text.includes('次日')) {
       const d = new Date(now); d.setDate(d.getDate() + 1);
       dueDate = getLocalISODate(d);
@@ -619,14 +623,13 @@ export default function App() {
       const d = new Date(now); d.setDate(d.getDate() + 3);
       dueDate = getLocalISODate(d);
     } else if (text.includes('下周')) {
-      // 解析下周几
       const weekDayMatch = text.match(/下周([一二三四五六日天])/);
       if (weekDayMatch) {
         const weekMap: Record<string, number> = { '一': 1, '二': 2, '三': 3, '四': 4, '五': 5, '六': 6, '日': 0, '天': 0 };
         const targetDay = weekMap[weekDayMatch[1]];
         const d = new Date(now);
         const currentDay = d.getDay();
-        let daysUntil = (targetDay - currentDay + 7) % 7 + 7; // 保证是下周
+        let daysUntil = (targetDay - currentDay + 7) % 7 + 7; 
         d.setDate(d.getDate() + daysUntil);
         dueDate = getLocalISODate(d);
       } else {
@@ -637,7 +640,6 @@ export default function App() {
       const d = new Date(now); d.setMonth(d.getMonth() + 1);
       dueDate = getLocalISODate(d);
     } else {
-      // 解析 周几/星期几
       const weekDayMatch = text.match(/(?:这?(?:周|星期))([一二三四五六日天])/);
       if (weekDayMatch) {
         const weekMap: Record<string, number> = { '一': 1, '二': 2, '三': 3, '四': 4, '五': 5, '六': 6, '日': 0, '天': 0 };
@@ -645,29 +647,23 @@ export default function App() {
         const d = new Date(now);
         const currentDay = d.getDay();
         let daysUntil = (targetDay - currentDay + 7) % 7;
-        if (daysUntil === 0) daysUntil = 7; // 如果是今天，则指下周
+        if (daysUntil === 0) daysUntil = 7; 
         d.setDate(d.getDate() + daysUntil);
         dueDate = getLocalISODate(d);
       }
-      // 解析 M月D日 格式
       const dateMatch = text.match(/(\d{1,2})月(\d{1,2})[日号]/);
       if (dateMatch) {
         const month = parseInt(dateMatch[1]) - 1;
         const day = parseInt(dateMatch[2]);
         const d = new Date(now.getFullYear(), month, day);
-        if (d < now) d.setFullYear(d.getFullYear() + 1); // 过去的日期默认明年
+        if (d < now) d.setFullYear(d.getFullYear() + 1); 
         dueDate = getLocalISODate(d);
       }
     }
 
-    // ---- 3. 解析时间（精确到小时/分钟） ----
-    // 匹配 "下午3点" "晚上8点30" "上午10点" "今晚8点" "3:30" "15:00" 等
     const timePatterns = [
-      // "下午3点半" "上午10点15"
       /(?:今天?|明天?|后天?)?\s*(?:凌晨|早上|上午|中午|下午|傍晚|晚上|今晚|夜里)(\d{1,2})(?:点|时)(半|\d{1,2})?(?:分)?/,
-      // "3点半" "8点" "10点15分"
       /(\d{1,2})(?:点|时)(半|\d{1,2})?(?:分)?/,
-      // "15:30" "8:00"
       /(\d{1,2}):(\d{2})/
     ];
 
@@ -684,7 +680,6 @@ export default function App() {
           parsedMinute = parseInt(match[2]);
         }
         
-        // 判断是否需要 +12 小时（下午/晚上）
         const hasPM = /下午|傍晚|晚上|今晚|夜里/.test(text);
         const hasAM = /凌晨|早上|上午/.test(text);
         const hasNoon = /中午/.test(text);
@@ -692,11 +687,9 @@ export default function App() {
         if (hasPM && parsedHour < 12) {
           parsedHour += 12;
         } else if (hasNoon && parsedHour === 12) {
-          // 12 stays 12
         } else if (hasAM && parsedHour === 12) {
           parsedHour = 0;
         } else if (!hasPM && !hasAM && !hasNoon && parsedHour < 7) {
-          // 无上下文但时间 < 7，可能是下午
           parsedHour += 12;
         }
         
@@ -705,7 +698,6 @@ export default function App() {
       }
     }
 
-    // ---- 4. 解析标签 ----
     if (text.includes('工作') || text.includes('开会') || text.includes('会议') || text.includes('汇报')) tags.push('工作');
     if (text.includes('学习') || text.includes('阅读') || text.includes('看书') || text.includes('复习') || text.includes('背单词')) tags.push('学习');
     if (text.includes('代码') || text.includes('技术') || text.includes('联调') || text.includes('接口') || text.includes('开发') || text.includes('bug') || text.includes('调试')) tags.push('技术');
@@ -713,7 +705,6 @@ export default function App() {
     if (text.includes('买') || text.includes('购物') || text.includes('超市') || text.includes('快递')) tags.push('生活');
     if (text.includes('医院') || text.includes('看病') || text.includes('体检') || text.includes('挂号')) tags.push('健康');
 
-    // ---- 5. 清洗标题：移除时间/优先级等修饰语 ----
     const stripPatterns = [
       /今天|明天|后天|大后天|下周[一二三四五六日天]?|下个?月|这?(?:周|星期)[一二三四五六日天]/g,
       /(?:凌晨|早上|上午|中午|下午|傍晚|晚上|今晚|夜里)?\d{1,2}(?:点|时)(?:半|\d{1,2})?(?:分)?/g,
@@ -738,7 +729,6 @@ export default function App() {
 
     const { title, dueDate, dueTime, quadrant, priority, tags } = nlpParseText(text);
     
-    // 根据来源添加来源标签
     const sourceTags = source === 'clipboard' ? ['剪贴板'] : source === 'voice' ? ['语音解析'] : [];
     const allTags = [...new Set([...sourceTags, ...tags])];
     
@@ -763,7 +753,6 @@ export default function App() {
     setTasks(updatedTasksList);
     Storage.setItem('hm_next_todos_tasks', JSON.stringify(updatedTasksList));
 
-    // Toast notification
     const timeInfo = dueTime ? ` ⏰ ${dueTime}` : '';
     setClipboardAlert(`${sourceEmoji} 解析成功：\n「${title}」\n📅 ${dueDate}${timeInfo}\n🎯 第${quadrant}象限 (${priority === 'HIGH' ? '🔴高' : priority === 'MEDIUM' ? '🟡中' : '🔵低'}优先级)`);
     
@@ -802,7 +791,6 @@ export default function App() {
       recognition.onerror = (event: any) => {
         console.error('Speech recognition error', event.error);
         setIsVoiceRecording(false);
-        // Fallback prompt input on error/unallowed micro permission
         const simulatedText = window.prompt('语音启动受限，可手动输入文字解析，格式如：“明天下午跟进代码 重要且紧急”', '明天下午跟进代码 🔴重要且紧急');
         if (simulatedText) {
           parseAndAddTask(simulatedText);
@@ -836,7 +824,6 @@ export default function App() {
   const handleDeleteTask = (id: string, e?: React.MouseEvent) => {
     if (e) e.stopPropagation();
     const updated = tasks.filter(t => t.id !== id);
-    // Remove deleted references from dependency trees too to prevent orphaned state
     const cleaned = updated.map(t => ({
       ...t,
       dependencies: t.dependencies.filter(depId => depId !== id)
@@ -853,14 +840,12 @@ export default function App() {
     }
   };
 
-  // A complete clear completed historical records (一键清理历史, P0)
   const handleClearCompletedHistory = () => {
     const updated = tasks.filter(t => !t.isCompleted);
     handleSaveTasks(updated);
     setIsConfirmClearModalOpen(false);
   };
 
-  // Habit management handlers
   const handleAddHabit = () => {
     if (!newHabitTitle.trim()) return;
     const newHabit: Habit = {
@@ -913,7 +898,6 @@ export default function App() {
     handleSaveHabits(updated);
   };
 
-  // Quadrant management handlers
   const handleAddQuadrant = () => {
     if (!newQuadTitle.trim()) return;
     const nextId = quadrantCategories.length > 0 ? Math.max(...quadrantCategories.map(c => c.id)) + 1 : 1;
@@ -958,10 +942,9 @@ export default function App() {
   };
 
   const renderTaskCard = (t: Task) => {
-    // Calculate if blocked
     let isBlocked = false;
     let blockingTaskTitle = '';
-    if (t.dependencies.length > 0) {
+    if (t.dependencies && t.dependencies.length > 0) {
       const pending = tasks.find(dep => t.dependencies.includes(dep.id) && !dep.isCompleted);
       if (pending) {
         isBlocked = true;
@@ -969,7 +952,6 @@ export default function App() {
       }
     }
 
-    // Define priority border classes
     let borderClass = 'border-l-4 border-l-gray-300';
     let chipColor = 'bg-gray-100 text-gray-650';
     if (t.priority === 'HIGH') {
@@ -1013,7 +995,6 @@ export default function App() {
       >
         <div className="flex items-start justify-between gap-3">
           <div className="flex items-start space-x-3 flex-1 min-w-0">
-            {/* Tick Checkbox */}
             <button
               id={`btn-task-tick-${t.id}`}
               onClick={() => handleToggleComplete(t.id)}
@@ -1049,7 +1030,6 @@ export default function App() {
             </div>
           </div>
 
-          {/* Right side floating quick control toolbox */}
           <div className="flex items-center space-x-1.5 pl-1.5 opacity-100 transition-opacity flex-shrink-0">
             <button
               id={`btn-task-focus-${t.id}`}
@@ -1077,7 +1057,6 @@ export default function App() {
           </div>
         </div>
 
-        {/* Metadatas flow bottom */}
         <div className="flex flex-wrap items-center gap-1.5 mt-2.5 pt-2 border-t border-gray-100/50 dark:border-zinc-800/20 w-full">
           {showQuadrantsTab && (
             <span className="text-[8.5px] bg-gray-100 dark:bg-zinc-800/80 text-gray-500 dark:text-zinc-400 px-2.5 py-0.2 rounded-full font-bold">
@@ -1087,7 +1066,7 @@ export default function App() {
           <span className={`text-[8.5px] px-2.5 py-0.2 rounded-full font-semibold ${chipColor}`}>
             {t.priority} 优先级
           </span>
-          {t.tags.map((tag, i) => (
+          {(t.tags || []).map((tag, i) => (
             <span key={i} className="text-[9px] text-gray-400 dark:text-zinc-650 font-mono">
               #{tag}
             </span>
@@ -1104,32 +1083,49 @@ export default function App() {
           )}
         </div>
 
-        {/* Full-width Subtasks Completion box */}
         {t.subtasks && t.subtasks.length > 0 && (
           <div className="mt-3.5 space-y-2 bg-gray-50/70 dark:bg-[#2C2C2E]/40 p-3 rounded-2xl border border-gray-150/10 dark:border-zinc-800 w-full animate-fade-in">
-            <div className="flex justify-between items-center text-[9px] text-gray-400 dark:text-zinc-500 font-bold mb-1 pl-0.5">
+            <div 
+              className="flex justify-between items-center text-[9px] text-gray-400 dark:text-zinc-500 font-bold mb-1 pl-0.5 cursor-pointer hover:text-gray-600 dark:hover:text-gray-300 transition-colors"
+              onClick={(e) => { e.stopPropagation(); handleToggleSubtasksCollapse(t.id); }}
+            >
               <span>子步骤拆解 ({t.subtasks.filter(s => s.isCompleted).length} / {t.subtasks.length} 已完成)</span>
+              <motion.div animate={{ rotate: t.isSubtasksCollapsed ? -90 : 0 }}>
+                <ChevronDown size={14} className="opacity-70" />
+              </motion.div>
             </div>
-            <div className="space-y-1.5 w-full">
-              {t.subtasks.map(sub => (
-                <div 
-                  key={sub.id} 
-                  onClick={(e) => { e.stopPropagation(); handleToggleSubtask(t.id, sub.id); }}
-                  className="flex items-center gap-2.5 p-1 hover:bg-gray-100/50 dark:hover:bg-zinc-700/50 rounded-lg cursor-pointer transition-colors"
+            
+            <AnimatePresence initial={false}>
+              {!t.isSubtasksCollapsed && (
+                <motion.div
+                  initial={{ height: 0, opacity: 0 }}
+                  animate={{ height: 'auto', opacity: 1 }}
+                  exit={{ height: 0, opacity: 0 }}
+                  className="overflow-hidden"
                 >
-                  <span className="flex-shrink-0">
-                    {sub.isCompleted ? (
-                      <CheckCircle2 size={13} className="fill-emerald-50 text-emerald-600" />
-                    ) : (
-                      <Circle size={13} className="text-gray-350 dark:text-zinc-650 hover:text-gray-500" />
-                    )}
-                  </span>
-                  <span className={`text-[10.5px] leading-snug flex-1 font-semibold ${sub.isCompleted ? 'line-through text-gray-400 dark:text-zinc-600 font-normal' : 'text-gray-700 dark:text-gray-200'}`}>
-                    {sub.title}
-                  </span>
-                </div>
-              ))}
-            </div>
+                  <div className="space-y-1.5 w-full">
+                    {t.subtasks.map(sub => (
+                      <div 
+                        key={sub.id} 
+                        onClick={(e) => { e.stopPropagation(); handleToggleSubtask(t.id, sub.id); }}
+                        className="flex items-center gap-2.5 p-1 hover:bg-gray-100/50 dark:hover:bg-zinc-700/50 rounded-lg cursor-pointer transition-colors"
+                      >
+                        <span className="flex-shrink-0">
+                          {sub.isCompleted ? (
+                            <CheckCircle2 size={13} className="fill-emerald-50 text-emerald-600" />
+                          ) : (
+                            <Circle size={13} className="text-gray-350 dark:text-zinc-650 hover:text-gray-500" />
+                          )}
+                        </span>
+                        <span className={`text-[10.5px] leading-snug flex-1 font-semibold ${sub.isCompleted ? 'line-through text-gray-400 dark:text-zinc-600 font-normal' : 'text-gray-700 dark:text-gray-200'}`}>
+                          {sub.title}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                </motion.div>
+              )}
+            </AnimatePresence>
             <div className="w-full bg-gray-200/80 dark:bg-zinc-700 h-1 rounded-full overflow-hidden mt-2">
               <div 
                 className="bg-emerald-500 h-1 rounded-full transition-all duration-300" 
@@ -1142,7 +1138,6 @@ export default function App() {
     );
   };
 
-  // 2. Templates Management (P2, Project templates setup)
   const handleSaveAsTemplate = (name: string, description: string, blueprint: Task) => {
     const newTemplate: ProjectTemplate = {
       id: 'template-' + Date.now(),
@@ -1154,8 +1149,8 @@ export default function App() {
           description: blueprint.description,
           priority: blueprint.priority,
           quadrant: blueprint.quadrant,
-          tags: blueprint.tags,
-          subtasks: blueprint.subtasks.map(s => s.title)
+          tags: blueprint.tags || [],
+          subtasks: blueprint.subtasks ? blueprint.subtasks.map(s => s.title) : []
         }
       ]
     };
@@ -1176,20 +1171,20 @@ export default function App() {
       isCompleted: false,
       priority: bt.priority,
       quadrant: bt.quadrant,
-      tags: [...bt.tags, template.name.substring(0, 4)],
+      tags: [...(bt.tags || []), template.name ? template.name.substring(0, 4) : '模版'],
       dueDate: getLocalISODate(),
-      subtasks: bt.subtasks.map((title, subidx) => ({
+      subtasks: bt.subtasks ? bt.subtasks.map((title, subidx) => ({
         id: `sub-init-tpl-${subidx}-${Date.now()}`,
         title,
         isCompleted: false
-      })),
+      })) : [],
       dependencies: [],
       focusMinutes: 0,
       createdAt: new Date().toISOString()
     }));
 
     handleSaveTasks([...newTasks, ...tasks]);
-    navigateTo('LIST');
+    setActiveTab('LIST');
     setIsHomeScreen(false);
     alert(`⚡️ 已成功导入「${template.name}」中的 ${newTasks.length} 个任务！`);
   };
@@ -1201,7 +1196,6 @@ export default function App() {
     Storage.setItem('hm_next_todos_templates', JSON.stringify(filtered));
   };
 
-  // 3. Focus Timer trigger controllers
   const getFocusTitle = (taskId?: string, customTitle?: string) => {
     if (customTitle) return customTitle;
     if (taskId) {
@@ -1219,12 +1213,9 @@ export default function App() {
     setIsRunning(true);
     setIsPaused(false);
     setIsHomeScreen(false);
-    navigateTo('POMODORO');
+    setActiveTab('POMODORO');
     
-    // 触发鸿蒙原生常驻通知/实况窗
-    if ((window as any).hmNotification) {
-      (window as any).hmNotification.startPomodoroLiveView(getFocusTitle(taskId), 25);
-    }
+    // Pomodoro notifications have been removed
   };
 
   const handleStartTimer = (duration: number, mode: FocusMode, taskId?: string, customTitle?: string) => {
@@ -1236,9 +1227,7 @@ export default function App() {
     setIsRunning(true);
     setIsPaused(false);
     
-    if ((window as any).hmNotification && mode !== 'STOPWATCH') {
-      (window as any).hmNotification.startPomodoroLiveView(getFocusTitle(taskId, customTitle), Math.ceil(duration / 60));
-    }
+    // Pomodoro notifications have been removed
   };
 
   useEffect(() => {
@@ -1256,9 +1245,7 @@ export default function App() {
     const nextPausedState = !isPaused;
     setIsPaused(nextPausedState);
     
-    if ((window as any).hmNotification && focusMode !== 'STOPWATCH') {
-      (window as any).hmNotification.updatePomodoroStatus(getFocusTitle(activeTaskId, customFocusTitle), timeRemaining, nextPausedState);
-    }
+    // Pomodoro notifications have been removed
   };
 
   const handleStopTimer = () => {
@@ -1266,36 +1253,26 @@ export default function App() {
     setIsPaused(false);
     setTimeRemaining(0);
     
-    if ((window as any).hmNotification) {
-      (window as any).hmNotification.cancelPomodoroNotification(false);
-    }
+    // Pomodoro notifications have been removed
   };
 
-  // Pasteboard / Clipboard 智能解析导入 (真实 NLP 解析, P1)
   const handleImportClipboardText = () => {
     if (!clipboardAlert) return;
-    
-    // 使用 NLP 引擎解析剪贴板文本
     const newTask = parseAndAddTask(clipboardAlert, 'clipboard');
     setClipboardAlert(null);
-    navigateTo('LIST');
+    setActiveTab('LIST');
     if (newTask) {
-      // 清除上面 parseAndAddTask 设置的 clipboardAlert（因为它设了成功提示）
-      // 给用户一个简短的确认
       setTimeout(() => setClipboardAlert(null), 3000);
     }
   };
 
-  // Compute tag clouds
   const tagCloudSet = useMemo(() => {
     const rawTags = new Set<string>();
     tasks.forEach(t => t.tags.forEach(tag => rawTags.add(tag)));
     return Array.from(rawTags);
   }, [tasks]);
 
-  // Filters and sorts computed list
   const filteredTasks = useMemo(() => {
-    // 1. Filter
     const result = tasks.filter(t => {
       const matchesSearch = t.title.toLowerCase().includes(searchQuery.toLowerCase()) || 
                             t.description.toLowerCase().includes(searchQuery.toLowerCase());
@@ -1312,7 +1289,6 @@ export default function App() {
       return matchesSearch && matchesTag && matchesPriority && matchesDueDate;
     });
 
-    // Priority numerical mapping helper
     const getPriorityVal = (p: Priority): number => {
       switch (p) {
         case 'HIGH': return 3;
@@ -1322,7 +1298,6 @@ export default function App() {
       }
     };
 
-    // 2. Sort
     if (sortBy === 'PRIORITY_DESC') {
       result.sort((a, b) => getPriorityVal(b.priority) - getPriorityVal(a.priority));
     } else if (sortBy === 'PRIORITY_ASC') {
@@ -1344,10 +1319,7 @@ export default function App() {
     return result;
   }, [tasks, searchQuery, selectedTag, sortBy, filterPriority, filterDueDate]);
 
-  const todayStr = useMemo(() => {
-    // Return today's date in YYYY-MM-DD
-    return getLocalISODate();
-  }, []);
+  const todayStr = useMemo(() => getLocalISODate(), []);
 
   const overdueTasks = useMemo(() => {
     return filteredTasks.filter(t => !t.isCompleted && t.dueDate && t.dueDate < todayStr);
@@ -1388,8 +1360,6 @@ export default function App() {
   }, [filteredTasks]);
 
   const filteredHabits = useMemo(() => {
-    // 习惯打卡不受标签过滤影响，仅受搜索关键词筛选
-    // 修复：点击标签时不过滤「今日自律追踪」内容
     return habits.filter(h => {
       const matchesSearch = searchQuery
         ? h.title.toLowerCase().includes(searchQuery.toLowerCase())
@@ -1398,7 +1368,6 @@ export default function App() {
     });
   }, [habits, searchQuery]);
 
-  // Live countdown label
   const formatTimerLabel = () => {
     const mins = Math.floor(timeRemaining / 60);
     const secs = timeRemaining % 60;
@@ -1408,7 +1377,25 @@ export default function App() {
   return (
     <div id="full-page" className={`h-screen w-screen flex items-center justify-center font-sans tracking-tight transition-colors duration-300 overflow-hidden ${darkMode ? 'dark bg-[#121214] text-[#E5E5E7]' : 'bg-[#F0F2F5] text-gray-800'}`}>
       
-      {/* Fully responsive embedded app viewport container */}
+      {!hasAgreedPrivacy && (
+        <PrivacyModal 
+          onAgree={() => { 
+            setHasAgreedPrivacy(true); 
+            Storage.setItem('hm_next_todos_privacy_agreed', 'true');
+            // requestNativeNotification(); // Removed per user request
+          }}
+          onDisagree={exitNativeApp}
+          onShowPolicy={(t) => setPolicyTypeToShow(t)}
+        />
+      )}
+
+      {policyTypeToShow && (
+        <PolicyViewer 
+          type={policyTypeToShow} 
+          onClose={() => setPolicyTypeToShow(null)} 
+        />
+      )}
+
       <div 
         id="app-embedded-container"
         className={`w-full h-full relative flex flex-col md:max-w-2xl lg:max-w-4xl md:h-[94vh] md:rounded-[2.25rem] md:shadow-2xl md:border transition-all overflow-hidden pt-[env(safe-area-inset-top)] pb-[env(safe-area-inset-bottom)] ${
@@ -1417,7 +1404,6 @@ export default function App() {
             : 'bg-[#EDEFF2] border-gray-200/50 md:shadow-gray-300/40'
         }`}
       >
-        {/* Play matching clipboard paste banner inside embedded viewport */}
         {clipboardAlert && (
           <div id="paste-alert-bubble" className="absolute top-14 left-6 right-6 bg-white/95 dark:bg-zinc-900/95 backdrop-blur-md rounded-2xl p-2.5 border border-blue-150/35 dark:border-zinc-800 shadow-xl z-50 transition-all flex items-center justify-between animate-fade-in animate-bounce">
             <div className="flex items-center space-x-2 bg-transparent text-left">
@@ -1450,7 +1436,6 @@ export default function App() {
         )}
 
         {isHomeScreen ? (
-          // DESKTOP HOMESCREEN WIDGET PLAYGROUND
           <WidgetPlayground
             tasks={tasks}
             onToggleComplete={handleToggleComplete}
@@ -1464,18 +1449,17 @@ export default function App() {
             onOpenFullApp={() => setIsHomeScreen(false)}
           />
         ) : (
-          // THE APP CORE FULL SCREEN
           <div id="app-viewport" className="flex-1 flex flex-col justify-between overflow-hidden bg-[#EDEFF2] dark:bg-[#121214] h-full relative">
             
             {/* Nav Header Row */}
-            <div className="px-5 pt-3.5 pb-2.5 bg-white/70 backdrop-blur-md border-b border-gray-200/40 space-y-3">
+            <div className="px-5 pt-3.5 pb-2.5 bg-white/70 dark:bg-[#1C1C1E]/70 backdrop-blur-md border-b border-gray-200/40 dark:border-zinc-800/40 space-y-3">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2.5">
                   <span className="font-extrabold text-[#007DFF] text-base font-sans tracking-tight">ZenFlow</span>
                   {isRunning && (
                     <div 
                       onClick={() => setActiveTab('POMODORO')}
-                      className="bg-[#E8F3FF] px-2 py-0.5 rounded-full flex items-center gap-1 border border-blue-100/30 animate-pulse cursor-pointer hover:bg-blue-100 transition-colors"
+                      className="bg-[#E8F3FF] dark:bg-blue-900/30 px-2 py-0.5 rounded-full flex items-center gap-1 border border-blue-100/30 dark:border-blue-800/30 animate-pulse cursor-pointer hover:bg-blue-100 dark:hover:bg-blue-800/40 transition-colors"
                     >
                       <div className="w-1.5 h-1.5 rounded-full bg-[#007DFF]" />
                       <span className="text-[9.5px] font-bold text-[#007DFF] font-mono">
@@ -1512,7 +1496,7 @@ export default function App() {
                   {/* Settings Icon integrating templates & dark mode style switches */}
                   <button
                     id="btn-header-settings-toggle"
-                    onClick={() => setIsSettingsOpen(true)}
+                    onClick={() => { setActiveTab('SETTINGS'); setIsHomeScreen(false); }}
                     title="系统设置"
                     className="w-8 h-8 text-[#007DFF] bg-[#E8F3FF] dark:bg-[#007DFF]/10 hover:bg-blue-100 rounded-xl transition-all border border-[#007DFF]/10 flex items-center justify-center cursor-pointer"
                   >
@@ -2054,6 +2038,7 @@ export default function App() {
                         onToggleComplete={handleToggleComplete}
                         onEditTask={handleEditTask}
                         onToggleSubtask={handleToggleSubtask}
+                        onToggleSubtasksCollapse={handleToggleSubtasksCollapse}
                         onUpdateTaskQuadrant={handleUpdateTaskQuadrant}
                         quadrantCategories={quadrantCategories}
                         onAddTaskInQuadrant={(q) => {
@@ -2115,6 +2100,23 @@ export default function App() {
                     </div>
                   )}
 
+                  {/* TAB 5: SETTINGS PAGE VIEW */}
+                  {activeTab === 'SETTINGS' && (
+                    <div id="view-tab-settings" className="h-full bg-white dark:bg-[#121214] no-scrollbar">
+                      <SettingsView 
+                        onShowPolicy={(type: 'USER' | 'PRIVACY') => setPolicyTypeToShow(type)} 
+                        darkMode={darkMode}
+                        setDarkMode={setDarkMode}
+                        showQuadrantsTab={showQuadrantsTab}
+                        setShowQuadrantsTab={(v) => { setShowQuadrantsTab(v); Storage.setItem('hm_show_quadrants_tab', String(v)); }}
+                        showHabitsTab={showHabitsTab}
+                        setShowHabitsTab={(v) => { setShowHabitsTab(v); Storage.setItem('hm_show_habits_tab', String(v)); }}
+                        showPomodoroTab={showPomodoroTab}
+                        setShowPomodoroTab={(v) => { setShowPomodoroTab(v); Storage.setItem('hm_show_pomodoro_tab', String(v)); }}
+                      />
+                    </div>
+                  )}
+
                 </motion.div>
               </AnimatePresence>
             </div>
@@ -2143,7 +2145,7 @@ export default function App() {
                          id={`btn-tab-${tab.id}`}
                          key={tab.id}
                          onClick={() => {
-                           navigateTo(tab.id);
+                           setActiveTab(tab.id);
                            setIsHomeScreen(false);
                          }}
                          className={`flex flex-col items-center justify-center p-1 px-1 rounded-2xl cursor-pointer hover:bg-gray-100/50 transition-colors ${

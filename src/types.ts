@@ -49,6 +49,7 @@ export interface Task {
   tags: string[];
   dueDate: string; // YYYY-MM-DD
   subtasks: SubTask[];
+  isSubtasksCollapsed?: boolean;
   dependencies: string[]; // List of Task IDs that must be completed first
   focusMinutes: number; // accumulated focus minutes
   createdAt: string;
