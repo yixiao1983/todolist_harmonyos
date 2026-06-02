@@ -12,6 +12,19 @@
   color-scheme: dark;
 }
 
+body {
+  margin: 0;
+  background-color: #F9FAFB; /* Light mode bg fallback */
+}
+.dark body {
+  background-color: #1C1C1E; /* Dark mode bg fallback */
+}
+
+#root {
+  width: 100%;
+  height: 100%;
+}
+
 /* Background overrides: Smooth transitions to Anthracite Gray (#121214) and Slate Card (#1C1C1E) */
 .dark .bg-white {
   background-color: #1C1C1E !important;

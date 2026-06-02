@@ -10,13 +10,14 @@ import { Calendar, ChevronLeft, ChevronRight, ChevronDown, CheckSquare, ListTodo
 interface CalendarViewProps {
   tasks: Task[];
   onEditTask: (task: Task) => void;
+  onToggleComplete?: (id: string) => void;
   selectedDate: string; // YYYY-MM-DD
   onSelectDate: (date: string) => void;
 }
 
 type CalendarLevel = 'DAY' | 'WEEK' | 'MONTH' | 'YEAR';
 
-export function CalendarView({ tasks, onEditTask, selectedDate, onSelectDate }: CalendarViewProps) {
+export function CalendarView({ tasks, onEditTask, onToggleComplete, selectedDate, onSelectDate }: CalendarViewProps) {
   const [currentLevel, setCurrentLevel] = useState<CalendarLevel>('MONTH');
   const [showLevelDropdown, setShowLevelDropdown] = useState(false);
   
@@ -130,14 +131,9 @@ export function CalendarView({ tasks, onEditTask, selectedDate, onSelectDate }: 
   const renderDayView = () => {
     const dateStr = formatYYYYMMDD(pivotDate);
     const dayTasks = tasks.filter(t => t.dueDate === dateStr);
-    const hours = Array.from({ length: 15 }, (_, i) => i + 8); // 8:00 to 22:00
 
     return (
-      <div id="calendar-day-flow" className="flex flex-col h-[340px] overflow-y-auto bg-white rounded-3xl p-4 border border-gray-100">
-        <div className="flex items-center justify-between pb-3 border-b border-gray-100 mb-3">
-          <span className="text-xs font-bold text-gray-800">今日安排 ({dayTasks.length} 项)</span>
-          <span className="text-xs font-mono text-gray-400 font-bold">{dateStr}</span>
-        </div>
+      <div id="calendar-day-flow" className="flex flex-col bg-white rounded-3xl p-4 border border-gray-100">
 
         {dayTasks.length === 0 ? (
           <div className="flex-1 flex flex-col items-center justify-center py-10 opacity-50">
@@ -160,8 +156,18 @@ export function CalendarView({ tasks, onEditTask, selectedDate, onSelectDate }: 
                 }`}
               >
                 <div className="flex items-center justify-between">
-                  <span className={`text-xs font-bold truncate ${t.isCompleted && 'line-through opacity-60'}`}>{t.title}</span>
-                  <span className={`text-[9px] px-1.5 py-0.2 rounded-sm uppercase font-black ${
+                  <div className="flex items-center gap-2 overflow-hidden flex-1">
+                    <button 
+                      onClick={(e) => { e.stopPropagation(); onToggleComplete && onToggleComplete(t.id); }}
+                      className={`shrink-0 w-4 h-4 rounded-[4px] border-2 flex items-center justify-center transition-all ${
+                        t.isCompleted ? 'bg-gray-300 border-gray-300' : 'bg-transparent border-gray-300 hover:border-gray-400'
+                      }`}
+                    >
+                      {t.isCompleted && <CheckSquare size={12} className="text-white" />}
+                    </button>
+                    <span className={`text-xs font-bold truncate ${t.isCompleted && 'line-through opacity-60'}`}>{t.title}</span>
+                  </div>
+                  <span className={`shrink-0 text-[9px] px-1.5 py-0.2 rounded-sm uppercase font-black ${
                     t.priority === 'HIGH' ? 'bg-rose-100 text-rose-700' : 'bg-gray-100 text-gray-500'
                   }`}>
                     {t.priority}
@@ -185,7 +191,7 @@ export function CalendarView({ tasks, onEditTask, selectedDate, onSelectDate }: 
   const renderWeekView = () => {
     const weekDays = getWeekDaysArray(pivotDate);
     return (
-      <div id="calendar-week-flow" className="flex flex-col gap-1.5 max-h-[340px] overflow-y-auto pr-1 no-scrollbar">
+      <div id="calendar-week-flow" className="flex flex-col gap-1.5 pr-1 no-scrollbar">
         {weekDays.map((wd, i) => {
           const wdStr = formatYYYYMMDD(wd);
           const wdTasks = tasks.filter(t => t.dueDate === wdStr);
@@ -217,7 +223,7 @@ export function CalendarView({ tasks, onEditTask, selectedDate, onSelectDate }: 
               </div>
 
               {/* Task list inside this weekday */}
-              <div className="flex-1 flex flex-wrap gap-1.5 overflow-hidden">
+              <div className="flex-1 flex flex-col gap-1.5 overflow-hidden">
                 {wdTasks.length === 0 ? (
                   <span className={`text-[10px] ${isSelected ? 'text-gray-500' : 'text-gray-300'} italic`}>暂无安排</span>
                 ) : (
@@ -228,7 +234,7 @@ export function CalendarView({ tasks, onEditTask, selectedDate, onSelectDate }: 
                         e.stopPropagation();
                         onEditTask(t);
                       }}
-                      className={`text-[9.5px] px-2 py-0.5 rounded-lg border font-bold truncate max-w-[140px] transition-all hover:scale-[1.02] ${
+                      className={`text-[10.5px] px-2 py-1.5 rounded-lg border flex items-center gap-1.5 transition-all hover:scale-[1.01] ${
                         isSelected 
                           ? 'bg-white/15 text-white border-white/10 hover:bg-white/20' 
                           : t.isCompleted 
@@ -238,7 +244,15 @@ export function CalendarView({ tasks, onEditTask, selectedDate, onSelectDate }: 
                               : 'bg-blue-50 text-blue-700 border-blue-100 font-bold'
                       }`}
                     >
-                      {t.title}
+                      <button 
+                        onClick={(e) => { e.stopPropagation(); onToggleComplete && onToggleComplete(t.id); }}
+                        className={`shrink-0 w-3.5 h-3.5 rounded-[4px] border-2 flex items-center justify-center transition-all ${
+                          t.isCompleted ? 'bg-gray-400 border-gray-400' : 'bg-transparent border-current opacity-60 hover:opacity-100'
+                        }`}
+                      >
+                        {t.isCompleted && <CheckSquare size={10} className="text-white" />}
+                      </button>
+                      <span className="truncate">{t.title}</span>
                     </div>
                   ))
                 )}
@@ -257,7 +271,7 @@ export function CalendarView({ tasks, onEditTask, selectedDate, onSelectDate }: 
     const selectedDayTasks = tasks.filter(t => t.dueDate === selectedDateStr);
 
     return (
-      <div id="calendar-month-flow" className="flex flex-col gap-2">
+      <div id="calendar-view-container" className="h-full flex flex-col bg-gray-50/30 overflow-y-auto overflow-x-hidden relative">
         {/* Week Days Headers */}
         <div className="grid grid-cols-7 text-center mb-1 bg-gray-100/50 p-1 rounded-xl">
           {WEEKDAYS.map((wd, i) => (
@@ -343,13 +357,14 @@ export function CalendarView({ tasks, onEditTask, selectedDate, onSelectDate }: 
                   }`}
                 >
                   <div className="flex items-center gap-1.5 overflow-hidden">
-                    <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${
-                      t.isCompleted 
-                        ? 'bg-gray-300' 
-                        : t.priority === 'HIGH' 
-                          ? 'bg-rose-500' 
-                          : 'bg-blue-500'
-                    }`} />
+                    <button 
+                      onClick={(e) => { e.stopPropagation(); onToggleComplete && onToggleComplete(t.id); }}
+                      className={`shrink-0 w-3.5 h-3.5 rounded-[4px] border flex items-center justify-center transition-all ${
+                        t.isCompleted ? 'bg-gray-400 border-gray-400' : t.priority === 'HIGH' ? 'bg-rose-50 border-rose-200' : 'bg-blue-50 border-blue-200'
+                      }`}
+                    >
+                      {t.isCompleted ? <CheckSquare size={10} className="text-white" /> : <div className={`w-1.5 h-1.5 rounded-full ${t.priority === 'HIGH' ? 'bg-rose-500' : 'bg-blue-500'}`} />}
+                    </button>
                     <span className="truncate leading-tight">{t.title}</span>
                   </div>
                   <div className="flex items-center gap-2 shrink-0">
@@ -384,7 +399,7 @@ export function CalendarView({ tasks, onEditTask, selectedDate, onSelectDate }: 
     });
 
     return (
-      <div id="calendar-year-flow" className="flex flex-col max-h-[340px] bg-white rounded-3xl p-3 border border-gray-100/50 overflow-y-auto no-scrollbar">
+      <div id="calendar-year-flow" className="flex flex-col bg-white rounded-3xl p-3 border border-gray-100/50">
         <div className="flex items-center gap-1.5 mb-2.5">
           <Sparkles size={11} className="text-amber-500 shrink-0" />
           <h4 className="text-[10px] font-extrabold text-gray-700 font-sans">年度待办与专注力热力分布走势</h4>
@@ -427,9 +442,9 @@ export function CalendarView({ tasks, onEditTask, selectedDate, onSelectDate }: 
   };
 
   return (
-    <div id="calendar-view-container" className="space-y-3.5">
+    <div id="calendar-view-container" className="space-y-3.5 h-full flex flex-col">
       {/* Refactored into a single header controls bar with a popup dropdown for dimension */}
-      <div className="flex items-center justify-between bg-white dark:bg-zinc-900/60 p-2.5 rounded-[1.6rem] border border-gray-150/15 dark:border-zinc-800/40 shadow-3xs relative">
+      <div className="flex-none flex items-center justify-between bg-white dark:bg-zinc-900/60 p-2.5 rounded-[1.6rem] border border-gray-150/15 dark:border-zinc-800/40 shadow-3xs relative">
         <div className="flex items-center gap-1.5 relative bg-transparent">
           {/* Dropdown Toggle Button, styled to act as icon popup trigger */}
           <button
@@ -495,7 +510,12 @@ export function CalendarView({ tasks, onEditTask, selectedDate, onSelectDate }: 
           <span className="px-1 text-center text-[10.5px] font-extrabold text-gray-800 dark:text-gray-200 font-mono tracking-tight">
             {currentLevel === 'YEAR' && `${pivotDate.getFullYear()}年`}
             {currentLevel === 'MONTH' && `${pivotDate.getFullYear()}年${pivotDate.getMonth() + 1}月`}
-            {currentLevel === 'WEEK' && `${pivotDate.getMonth() + 1}月 w${Math.ceil(pivotDate.getDate() / 7)}`}
+            {currentLevel === 'WEEK' && (() => {
+               const weekDays = getWeekDaysArray(pivotDate);
+               const first = weekDays[0];
+               const last = weekDays[6];
+               return `${first.getMonth() + 1}/${first.getDate()}-${last.getMonth() + 1}/${last.getDate()}`;
+            })()}
             {currentLevel === 'DAY' && formatYYYYMMDD(pivotDate).substring(5)}
           </span>
           <button 
@@ -517,7 +537,7 @@ export function CalendarView({ tasks, onEditTask, selectedDate, onSelectDate }: 
       </div>
 
       {/* Main Grid Render Area */}
-      <div id="calendar-view-content" className="min-h-[280px]">
+      <div id="calendar-view-content" className="flex-1 overflow-y-auto no-scrollbar pb-6">
         {currentLevel === 'DAY' && renderDayView()}
         {currentLevel === 'WEEK' && renderWeekView()}
         {currentLevel === 'MONTH' && renderMonthView()}

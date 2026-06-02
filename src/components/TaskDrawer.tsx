@@ -157,10 +157,10 @@ export function TaskDrawer({ isOpen, onClose, task, allTasks, onSave, onSaveAsTe
   const availableDependencyTasks = allTasks.filter(t => !task || t.id !== task.id);
 
   return (
-    <div id="drawer-container" className="fixed inset-0 z-50 flex items-end justify-center bg-black/55 backdrop-blur-xs transition-opacity duration-300">
+    <div id="drawer-container" className="fixed inset-0 z-50 flex items-end justify-center pb-6 bg-black/55 backdrop-blur-xs transition-opacity duration-300">
       <div 
         id="drawer-panel" 
-        className="relative w-full max-w-lg bg-[#F1F3F5] rounded-t-[2.5rem] shadow-2xl overflow-hidden flex flex-col max-h-[90vh] transition-transform duration-300 transform translate-y-0"
+        className="relative w-[96%] max-w-lg bg-[#F1F3F5] rounded-[2.5rem] shadow-2xl overflow-hidden flex flex-col max-h-[85vh] transition-transform duration-300 transform translate-y-0"
       >
         {/* Draw Handle Accent */}
         <div className="w-12 h-1.5 bg-gray-300 rounded-full mx-auto my-3" />

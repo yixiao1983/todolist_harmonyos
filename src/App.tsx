@@ -6,8 +6,8 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { Task, Quadrant, Priority, ProjectTemplate, FocusMode, Habit, QuadrantCategory } from './types';
 import { FocusAudioSynthesizer } from './utils/audio';
+import { Storage } from './utils/storage';
 import { DEFAULT_TEMPLATES } from './utils/templates';
-// MockDevice removed as requested
 import { WidgetPlayground } from './components/WidgetPlayground';
 import { TaskDrawer } from './components/TaskDrawer';
 import { TaskQuadrant } from './components/TaskQuadrant';
@@ -48,75 +48,9 @@ import {
   MicOff
 } from 'lucide-react';
 
-const INITIAL_TASKS: Task[] = [
-  {
-    id: 'init-1',
-    title: '联调真机实况窗显示延迟 (Live Capsule)',
-    description: '真机退回后台时，通知常驻胶囊状态栏更新间隔漂移必须保持在1秒以内。',
-    isCompleted: false,
-    priority: 'HIGH',
-    quadrant: 1,
-    tags: ['技术', '优化'],
-    dueDate: new Date().toISOString().split('T')[0],
-    subtasks: [
-      { id: 'sub-1-1', title: '测试 backgroundTaskManager 唤醒包', isCompleted: true },
-      { id: 'sub-1-2', title: '验证 Live View Kit 卡片胶囊状态切换 API', isCompleted: false }
-    ],
-    dependencies: [],
-    focusMinutes: 15,
-    createdAt: new Date().toISOString()
-  },
-  {
-    id: 'init-2',
-    title: '生成符合 NEXT 规范的桌面自适应图标',
-    description: '异形拉伸裁切符合华为 AppGallery 上架审核规范标准。',
-    isCompleted: false,
-    priority: 'HIGH',
-    quadrant: 2,
-    tags: ['政策', '审核'],
-    dueDate: new Date().toISOString().split('T')[0],
-    subtasks: [
-      { id: 'sub-2-1', title: '上传 SVG 独立背景层与前景 logo 层', isCompleted: false }
-    ],
-    dependencies: [],
-    focusMinutes: 0,
-    createdAt: new Date().toISOString()
-  },
-  {
-    id: 'init-3',
-    title: '修复 CSS 隔空手势组件滑动误触',
-    description: '解决手部距离屏幕10cm由于快慢速挥动引起的误触回调。',
-    isCompleted: true,
-    priority: 'MEDIUM',
-    quadrant: 3,
-    tags: ['工作', '缺陷'],
-    dueDate: new Date().toISOString().split('T')[0],
-    subtasks: [],
-    dependencies: [],
-    focusMinutes: 25,
-    createdAt: new Date().toISOString()
-  },
-  {
-    id: 'init-4',
-    title: '小艺管家语音控制对接意图框架 (Intent Framework)',
-    description: '通过语音语义智能拦截识别待办时间描述直接写库。',
-    isCompleted: false,
-    priority: 'LOW',
-    quadrant: 4,
-    tags: ['日常', 'AI'],
-    dueDate: new Date(Date.now() + 86400000).toISOString().split('T')[0], // Tomorrow
-    subtasks: [],
-    dependencies: ['init-1'], // Depends on live updates completing
-    focusMinutes: 0,
-    createdAt: new Date().toISOString()
-  }
-];
+const INITIAL_TASKS: Task[] = [];
 
-const INITIAL_HABITS: Habit[] = [
-  { id: 'h-1', title: '每日晨跑 5 公里', createdAt: new Date().toISOString(), completedDates: [], periodType: 'DAILY', startDate: new Date().toISOString().split('T')[0], endDate: '2026-12-31' },
-  { id: 'h-2', title: '阅读一章技术文档或书籍', createdAt: new Date().toISOString(), completedDates: [], periodType: 'DAILY', startDate: new Date().toISOString().split('T')[0], endDate: '2026-12-31' },
-  { id: 'h-3', title: '保持 25 分钟脑部番茄专注', createdAt: new Date().toISOString(), completedDates: [new Date().toISOString().split('T')[0]], periodType: 'DAILY', startDate: new Date().toISOString().split('T')[0], endDate: '2026-12-31' }
-];
+const INITIAL_HABITS: Habit[] = [];
 
 const DEFAULT_QUADRANTS: QuadrantCategory[] = [
   {
@@ -201,11 +135,11 @@ const QUADRANT_PRESET_DESIGNS = [
 export default function App() {
   // Theme dark mode state
   const [darkMode, setDarkMode] = useState<boolean>(() => {
-    return localStorage.getItem('hm_dark_mode') === 'true';
+    return Storage.getItem('hm_dark_mode') === 'true';
   });
 
   useEffect(() => {
-    localStorage.setItem('hm_dark_mode', String(darkMode));
+    Storage.setItem('hm_dark_mode', String(darkMode));
     if (darkMode) {
       document.documentElement.classList.add('dark');
     } else {
@@ -219,17 +153,17 @@ export default function App() {
   const [selectedDate, setSelectedDate] = useState(() => new Date().toISOString().split('T')[0]);
 
   const [showHabitsTab, setShowHabitsTab] = useState<boolean>(() => {
-    return localStorage.getItem('hm_show_habits_tab') !== 'false';
+    return Storage.getItem('hm_show_habits_tab') !== 'false';
   });
   const [showQuadrantsTab, setShowQuadrantsTab] = useState<boolean>(() => {
-    return localStorage.getItem('hm_show_quadrants_tab') !== 'false';
+    return Storage.getItem('hm_show_quadrants_tab') !== 'false';
   });
   const [showPomodoroTab, setShowPomodoroTab] = useState<boolean>(() => {
-    return localStorage.getItem('hm_show_pomodoro_tab') !== 'false';
+    return Storage.getItem('hm_show_pomodoro_tab') !== 'false';
   });
   const [isFiltersExpanded, setIsFiltersExpanded] = useState<boolean>(false);
   const [groupByTagCluster, setGroupByTagCluster] = useState<boolean>(() => {
-    return localStorage.getItem('hm_group_by_tag_cluster') === 'true';
+    return Storage.getItem('hm_group_by_tag_cluster') === 'true';
   });
 
   // Focus Custom Settings State
@@ -292,15 +226,74 @@ export default function App() {
   const audioSynthRef = useRef<FocusAudioSynthesizer | null>(null);
   const stopwatchIntervalRef = useRef<number | null>(null);
 
+  // 导航历史：支持鸿蒙左滑返回手势
+  type TabType = 'LIST' | 'HABIT' | 'QUADRANT' | 'CALENDAR' | 'POMODORO' | 'TEMPLATES';
+  const navigateTo = (tab: TabType) => {
+    if (tab === activeTab) return;
+    // 写入浏览器历史，让 ArkWeb 的 backward() 可以感知
+    history.pushState({ tab }, '', `#${tab.toLowerCase()}`);
+    setActiveTab(tab);
+  };
+
+  // 监听浏览器 popstate 事件（鸿蒙左滑触发 controller.backward() 时会产生）
+  useEffect(() => {
+    const handlePopState = (e: PopStateEvent) => {
+      // 优先关闭弹窗/抽屉
+      if (isDrawerOpen) {
+        setIsDrawerOpen(false);
+        setEditingTask(null);
+        // 阻止实际的页面后退，重新 push 当前状态
+        history.pushState({ tab: activeTab }, '', `#${activeTab.toLowerCase()}`);
+        return;
+      }
+      if (isSettingsOpen) {
+        setIsSettingsOpen(false);
+        history.pushState({ tab: activeTab }, '', `#${activeTab.toLowerCase()}`);
+        return;
+      }
+      if (isTemplateModalOpen) {
+        setIsTemplateModalOpen(false);
+        history.pushState({ tab: activeTab }, '', `#${activeTab.toLowerCase()}`);
+        return;
+      }
+      if (isAddHabitModalOpen) {
+        setIsAddHabitModalOpen(false);
+        history.pushState({ tab: activeTab }, '', `#${activeTab.toLowerCase()}`);
+        return;
+      }
+      // 回退到上一个 Tab
+      if (e.state && e.state.tab) {
+        setActiveTab(e.state.tab as TabType);
+      } else {
+        // 历史栈已空，回到默认首页
+        setActiveTab('LIST');
+      }
+    };
+
+    window.addEventListener('popstate', handlePopState);
+    // 初始化当前页面的历史状态
+    history.replaceState({ tab: activeTab }, '', `#${activeTab.toLowerCase()}`);
+
+    return () => {
+      window.removeEventListener('popstate', handlePopState);
+    };
+  }, [activeTab, isDrawerOpen, isSettingsOpen, isTemplateModalOpen, isAddHabitModalOpen]);
+
   // Initialize data on mount
   useEffect(() => {
+    // Clear old prototype mock data (v2 flush)
+    if (!Storage.getItem('hm_next_v2_cleared')) {
+      Storage.clear();
+      Storage.setItem('hm_next_v2_cleared', 'true');
+    }
+
     // Lazy instance of FocusAudioSynthesizer
     if (!audioSynthRef.current) {
       audioSynthRef.current = new FocusAudioSynthesizer();
     }
 
     // Load Local Tasks
-    const localTasks = localStorage.getItem('hm_next_todos_tasks');
+    const localTasks = Storage.getItem('hm_next_todos_tasks');
     if (localTasks) {
       try {
         setTasks(JSON.parse(localTasks));
@@ -309,11 +302,11 @@ export default function App() {
       }
     } else {
       setTasks(INITIAL_TASKS);
-      localStorage.setItem('hm_next_todos_tasks', JSON.stringify(INITIAL_TASKS));
+      Storage.setItem('hm_next_todos_tasks', JSON.stringify(INITIAL_TASKS));
     }
 
     // Load Local Templates
-    const localTemplates = localStorage.getItem('hm_next_todos_templates');
+    const localTemplates = Storage.getItem('hm_next_todos_templates');
     if (localTemplates) {
       try {
         setTemplates(JSON.parse(localTemplates));
@@ -322,11 +315,11 @@ export default function App() {
       }
     } else {
       setTemplates(DEFAULT_TEMPLATES);
-      localStorage.setItem('hm_next_todos_templates', JSON.stringify(DEFAULT_TEMPLATES));
+      Storage.setItem('hm_next_todos_templates', JSON.stringify(DEFAULT_TEMPLATES));
     }
 
     // Load Local Habits
-    const localHabits = localStorage.getItem('hm_next_todos_habits');
+    const localHabits = Storage.getItem('hm_next_todos_habits');
     if (localHabits) {
       try {
         setHabits(JSON.parse(localHabits));
@@ -335,11 +328,11 @@ export default function App() {
       }
     } else {
       setHabits(INITIAL_HABITS);
-      localStorage.setItem('hm_next_todos_habits', JSON.stringify(INITIAL_HABITS));
+      Storage.setItem('hm_next_todos_habits', JSON.stringify(INITIAL_HABITS));
     }
 
     // Load Local Quadrants
-    const localQuadrants = localStorage.getItem('hm_next_todos_quadrants');
+    const localQuadrants = Storage.getItem('hm_next_todos_quadrants');
     if (localQuadrants) {
       try {
         setQuadrantCategories(JSON.parse(localQuadrants));
@@ -348,38 +341,112 @@ export default function App() {
       }
     } else {
       setQuadrantCategories(DEFAULT_QUADRANTS);
-      localStorage.setItem('hm_next_todos_quadrants', JSON.stringify(DEFAULT_QUADRANTS));
+      Storage.setItem('hm_next_todos_quadrants', JSON.stringify(DEFAULT_QUADRANTS));
     }
 
-    // Core HarmonyOS Quick Clipboard Trigger simulation
-    const clipboardTimer = setTimeout(() => {
-      setClipboardAlert('今晚8点召集核心团队会议：联调自适应202%矢量SVG前景背景流转');
-    }, 4500);
+
+    // 暴露全局方法供鸿蒙原生层通过 runJavaScript 注入剪贴板文本
+    (window as any).__injectClipboardText = (text: string) => {
+      if (text && text.trim()) {
+        const cleanText = text.trim();
+        setClipboardAlert(cleanText);
+        // 自动解析并创建任务
+        const parsed = nlpParseText(cleanText);
+        const newTask: Task = {
+          id: Math.random().toString(36).substr(2, 9),
+          title: parsed.title,
+          priority: parsed.priority,
+          quadrant: parsed.quadrant,
+          dueDate: parsed.dueDate,
+          dueTime: parsed.dueTime,
+          isCompleted: false,
+          tags: parsed.tags,
+          subtasks: []
+        };
+        setTasks(prev => {
+          const updated = [...prev, newTask];
+          Storage.setItem('hm_next_todos_tasks', JSON.stringify(updated));
+          return updated;
+        });
+        setTimeout(() => setClipboardAlert(null), 3000); // 3秒后自动隐藏气泡
+      }
+    };
+
+    // 暴露全局方法供鸿蒙原生层处理卡片 router action 跳转意图
+    (window as any).__handleCardAction = (payloadStr: string) => {
+      try {
+        const payload = JSON.parse(payloadStr);
+        if (payload && payload.params && payload.params.action) {
+          const action = payload.params.action;
+          if (action === 'startPomodoro') {
+            setActiveTab('POMODORO');
+          } else if (action === 'viewTask') {
+            setActiveTab('LIST');
+          }
+        }
+      } catch (e) {
+        console.error('Failed to parse card action payload:', e);
+      }
+    };
+
+    // 主动拉取一次原生层可能已经准备好的剪切板数据（解决首次启动时序差异）
+    if ((window as any).hmNativeStorage && (window as any).hmNativeStorage.getClipboardPayload) {
+      try {
+        const payloadStr = (window as any).hmNativeStorage.getClipboardPayload();
+        if (payloadStr) {
+          const parsed = JSON.parse(payloadStr);
+          if (parsed && parsed.text && parsed.text.trim()) {
+            const cleanText = parsed.text.trim();
+            setClipboardAlert(cleanText);
+            const nlpParsed = nlpParseText(cleanText);
+            const newTask: Task = {
+              id: Math.random().toString(36).substr(2, 9),
+              title: nlpParsed.title,
+              priority: nlpParsed.priority,
+              quadrant: nlpParsed.quadrant,
+              dueDate: nlpParsed.dueDate,
+              dueTime: nlpParsed.dueTime,
+              isCompleted: false,
+              tags: nlpParsed.tags,
+              subtasks: []
+            };
+            setTasks(prev => {
+              const updated = [...prev, newTask];
+              Storage.setItem('hm_next_todos_tasks', JSON.stringify(updated));
+              return updated;
+            });
+            setTimeout(() => setClipboardAlert(null), 3000);
+          }
+        }
+      } catch (e) {
+        console.error('Failed to get initial clipboard payload', e);
+      }
+    }
 
     return () => {
-      clearTimeout(clipboardTimer);
       if (stopwatchIntervalRef.current) {
         clearInterval(stopwatchIntervalRef.current);
       }
+      delete (window as any).__injectClipboardText;
     };
   }, []);
 
   // Save tasks helper
   const handleSaveTasks = (updatedTasks: Task[]) => {
     setTasks(updatedTasks);
-    localStorage.setItem('hm_next_todos_tasks', JSON.stringify(updatedTasks));
+    Storage.setItem('hm_next_todos_tasks', JSON.stringify(updatedTasks));
   };
 
   // Save habits helper
   const handleSaveHabits = (updatedHabits: Habit[]) => {
     setHabits(updatedHabits);
-    localStorage.setItem('hm_next_todos_habits', JSON.stringify(updatedHabits));
+    Storage.setItem('hm_next_todos_habits', JSON.stringify(updatedHabits));
   };
 
   // Save quadrant categories helper
   const handleSaveQuadrants = (updatedQuads: QuadrantCategory[]) => {
     setQuadrantCategories(updatedQuads);
-    localStorage.setItem('hm_next_todos_quadrants', JSON.stringify(updatedQuads));
+    Storage.setItem('hm_next_todos_quadrants', JSON.stringify(updatedQuads));
   };
 
   // Timer clock ticketing
@@ -425,6 +492,11 @@ export default function App() {
   const handleSessionCompleted = () => {
     setIsRunning(false);
     setIsPaused(false);
+    
+    // Call native API to cancel ongoing notification and show completion
+    if ((window as any).hmNotification) {
+      (window as any).hmNotification.cancelPomodoroNotification(true);
+    }
     
     // Synthesize satisfying alarm Chime wave representing Linear Haptic bells
     if (audioSynthRef.current) {
@@ -515,74 +587,171 @@ export default function App() {
     setIsDrawerOpen(true);
   };
 
-  const parseAndAddTask = (text: string) => {
+  // ========== NLP 语义智能解析引擎 ==========
+  // 从自然语言文本中提取：时间、日期、优先级、标签、标题
+  const nlpParseText = (text: string) => {
+    const now = new Date();
+    let dueDate = now.toISOString().split('T')[0]; // Default today
+    let dueTime = ''; // HH:MM format
+    let quadrant: Quadrant = 2;
+    let priority: Priority = 'MEDIUM';
+    const tags: string[] = [];
+    
+    // ---- 1. 解析优先级/象限 ----
+    if (text.includes('重要且紧急') || text.includes('紧急且重要') || text.includes('p0') || text.includes('P0') || (text.includes('重要') && text.includes('紧急'))) {
+      quadrant = 1; priority = 'HIGH';
+    } else if (text.includes('重要')) {
+      quadrant = 2; priority = 'HIGH';
+    } else if (text.includes('紧急')) {
+      quadrant = 3; priority = 'MEDIUM';
+    } else if (text.includes('不重要') || text.includes('无所谓') || text.includes('日常') || text.includes('空闲')) {
+      quadrant = 4; priority = 'LOW';
+    }
+
+    // ---- 2. 解析日期 ----
+    if (text.includes('明天') || text.includes('次日')) {
+      const d = new Date(now); d.setDate(d.getDate() + 1);
+      dueDate = d.toISOString().split('T')[0];
+    } else if (text.includes('后天')) {
+      const d = new Date(now); d.setDate(d.getDate() + 2);
+      dueDate = d.toISOString().split('T')[0];
+    } else if (text.includes('大后天')) {
+      const d = new Date(now); d.setDate(d.getDate() + 3);
+      dueDate = d.toISOString().split('T')[0];
+    } else if (text.includes('下周')) {
+      // 解析下周几
+      const weekDayMatch = text.match(/下周([一二三四五六日天])/);
+      if (weekDayMatch) {
+        const weekMap: Record<string, number> = { '一': 1, '二': 2, '三': 3, '四': 4, '五': 5, '六': 6, '日': 0, '天': 0 };
+        const targetDay = weekMap[weekDayMatch[1]];
+        const d = new Date(now);
+        const currentDay = d.getDay();
+        let daysUntil = (targetDay - currentDay + 7) % 7 + 7; // 保证是下周
+        d.setDate(d.getDate() + daysUntil);
+        dueDate = d.toISOString().split('T')[0];
+      } else {
+        const d = new Date(now); d.setDate(d.getDate() + 7);
+        dueDate = d.toISOString().split('T')[0];
+      }
+    } else if (text.includes('下个月') || text.includes('下月')) {
+      const d = new Date(now); d.setMonth(d.getMonth() + 1);
+      dueDate = d.toISOString().split('T')[0];
+    } else {
+      // 解析 周几/星期几
+      const weekDayMatch = text.match(/(?:这?(?:周|星期))([一二三四五六日天])/);
+      if (weekDayMatch) {
+        const weekMap: Record<string, number> = { '一': 1, '二': 2, '三': 3, '四': 4, '五': 5, '六': 6, '日': 0, '天': 0 };
+        const targetDay = weekMap[weekDayMatch[1]];
+        const d = new Date(now);
+        const currentDay = d.getDay();
+        let daysUntil = (targetDay - currentDay + 7) % 7;
+        if (daysUntil === 0) daysUntil = 7; // 如果是今天，则指下周
+        d.setDate(d.getDate() + daysUntil);
+        dueDate = d.toISOString().split('T')[0];
+      }
+      // 解析 M月D日 格式
+      const dateMatch = text.match(/(\d{1,2})月(\d{1,2})[日号]/);
+      if (dateMatch) {
+        const month = parseInt(dateMatch[1]) - 1;
+        const day = parseInt(dateMatch[2]);
+        const d = new Date(now.getFullYear(), month, day);
+        if (d < now) d.setFullYear(d.getFullYear() + 1); // 过去的日期默认明年
+        dueDate = d.toISOString().split('T')[0];
+      }
+    }
+
+    // ---- 3. 解析时间（精确到小时/分钟） ----
+    // 匹配 "下午3点" "晚上8点30" "上午10点" "今晚8点" "3:30" "15:00" 等
+    const timePatterns = [
+      // "下午3点半" "上午10点15"
+      /(?:今天?|明天?|后天?)?\s*(?:凌晨|早上|上午|中午|下午|傍晚|晚上|今晚|夜里)(\d{1,2})(?:点|时)(半|\d{1,2})?(?:分)?/,
+      // "3点半" "8点" "10点15分"
+      /(\d{1,2})(?:点|时)(半|\d{1,2})?(?:分)?/,
+      // "15:30" "8:00"
+      /(\d{1,2}):(\d{2})/
+    ];
+
+    let parsedHour = -1;
+    let parsedMinute = 0;
+    
+    for (const pattern of timePatterns) {
+      const match = text.match(pattern);
+      if (match) {
+        parsedHour = parseInt(match[1]);
+        if (match[2] === '半') {
+          parsedMinute = 30;
+        } else if (match[2]) {
+          parsedMinute = parseInt(match[2]);
+        }
+        
+        // 判断是否需要 +12 小时（下午/晚上）
+        const hasPM = /下午|傍晚|晚上|今晚|夜里/.test(text);
+        const hasAM = /凌晨|早上|上午/.test(text);
+        const hasNoon = /中午/.test(text);
+        
+        if (hasPM && parsedHour < 12) {
+          parsedHour += 12;
+        } else if (hasNoon && parsedHour === 12) {
+          // 12 stays 12
+        } else if (hasAM && parsedHour === 12) {
+          parsedHour = 0;
+        } else if (!hasPM && !hasAM && !hasNoon && parsedHour < 7) {
+          // 无上下文但时间 < 7，可能是下午
+          parsedHour += 12;
+        }
+        
+        dueTime = `${String(parsedHour).padStart(2, '0')}:${String(parsedMinute).padStart(2, '0')}`;
+        break;
+      }
+    }
+
+    // ---- 4. 解析标签 ----
+    if (text.includes('工作') || text.includes('开会') || text.includes('会议') || text.includes('汇报')) tags.push('工作');
+    if (text.includes('学习') || text.includes('阅读') || text.includes('看书') || text.includes('复习') || text.includes('背单词')) tags.push('学习');
+    if (text.includes('代码') || text.includes('技术') || text.includes('联调') || text.includes('接口') || text.includes('开发') || text.includes('bug') || text.includes('调试')) tags.push('技术');
+    if (text.includes('运动') || text.includes('跑步') || text.includes('健身') || text.includes('游泳') || text.includes('瑜伽')) tags.push('健康');
+    if (text.includes('买') || text.includes('购物') || text.includes('超市') || text.includes('快递')) tags.push('生活');
+    if (text.includes('医院') || text.includes('看病') || text.includes('体检') || text.includes('挂号')) tags.push('健康');
+
+    // ---- 5. 清洗标题：移除时间/优先级等修饰语 ----
+    const stripPatterns = [
+      /今天|明天|后天|大后天|下周[一二三四五六日天]?|下个?月|这?(?:周|星期)[一二三四五六日天]/g,
+      /(?:凌晨|早上|上午|中午|下午|傍晚|晚上|今晚|夜里)?\d{1,2}(?:点|时)(?:半|\d{1,2})?(?:分)?/g,
+      /\d{1,2}:\d{2}/g,
+      /\d{1,2}月\d{1,2}[日号]/g,
+      /重要且紧急|紧急且重要|重要|紧急|不重要|p0|P0/g,
+      /🔴|🟡|🔵|🎙️/g
+    ];
+    
+    let title = text;
+    for (const p of stripPatterns) {
+      title = title.replace(p, '');
+    }
+    title = title.replace(/\s+/g, ' ').trim();
+    if (title.length < 2) title = text.trim();
+
+    return { title, dueDate, dueTime, quadrant, priority, tags };
+  };
+
+  const parseAndAddTask = (text: string, source: 'voice' | 'clipboard' | 'manual' = 'voice') => {
     if (!text || !text.trim()) return;
 
-    // Parse Quadrant/Priority
-    let quadrant: Quadrant = 2; // Default important but not urgent
-    let priority: Priority = 'MEDIUM';
+    const { title, dueDate, dueTime, quadrant, priority, tags } = nlpParseText(text);
     
-    const textLower = text.toLowerCase();
+    // 根据来源添加来源标签
+    const sourceTags = source === 'clipboard' ? ['剪贴板'] : source === 'voice' ? ['语音解析'] : [];
+    const allTags = [...new Set([...sourceTags, ...tags])];
     
-    if (textLower.includes('重要且紧急') || textLower.includes('紧急且重要') || textLower.includes('p0') || (textLower.includes('重要') && textLower.includes('紧急'))) {
-      quadrant = 1;
-      priority = 'HIGH';
-    } else if (textLower.includes('重要')) {
-      quadrant = 2;
-      priority = 'HIGH';
-    } else if (textLower.includes('紧急')) {
-      quadrant = 3;
-      priority = 'MEDIUM';
-    } else if (textLower.includes('不重要') || textLower.includes('无所谓') || textLower.includes('日常') || textLower.includes('空闲')) {
-      quadrant = 4;
-      priority = 'LOW';
-    }
-
-    // Parse Due Date
-    let dueDate = new Date().toISOString().split('T')[0]; // Default today
-    if (textLower.includes('明天') || textLower.includes('次日')) {
-      const tomorrow = new Date();
-      tomorrow.setDate(tomorrow.getDate() + 1);
-      dueDate = tomorrow.toISOString().split('T')[0];
-    } else if (textLower.includes('后天')) {
-      const dayAfter = new Date();
-      dayAfter.setDate(dayAfter.getDate() + 2);
-      dueDate = dayAfter.toISOString().split('T')[0];
-    } else if (textLower.includes('下周')) {
-      const nextWeek = new Date();
-      nextWeek.setDate(nextWeek.getDate() + 7);
-      dueDate = nextWeek.toISOString().split('T')[0];
-    }
-
-    // Parse Tags
-    const tags: string[] = ['语音解析'];
-    if (textLower.includes('工作') || textLower.includes('开会') || textLower.includes('会议')) {
-      tags.push('工作');
-    }
-    if (textLower.includes('学习') || textLower.includes('阅读') || textLower.includes('看书') || textLower.includes('复习')) {
-      tags.push('学习');
-    }
-    if (textLower.includes('代码') || textLower.includes('技术') || textLower.includes('联调') || textLower.includes('接口') || textLower.includes('开发')) {
-      tags.push('技术');
-    }
-    if (textLower.includes('运动') || textLower.includes('跑步') || textLower.includes('健身')) {
-      tags.push('健康');
-    }
-
-    // Clean description / title
-    let title = text.replace(/(今天|明天|后天|下周|重要|紧急|不重要|紧急且重要|重要且紧急|🔴|🟡|🔵|🎙️)/g, '').trim();
-    if (title.length < 2) {
-      title = text; // Fallback if too short after stripping
-    }
+    const sourceEmoji = source === 'clipboard' ? '📋' : source === 'voice' ? '🎙️' : '✏️';
 
     const newTask: Task = {
-      id: 'task-voice-' + Date.now(),
+      id: `task-${source}-` + Date.now(),
       title: title,
-      description: `🎙️ 语音智能录入解析："${text}"`,
+      description: `${sourceEmoji} 智能解析录入："${text}"${dueTime ? `\n⏰ 提醒时间: ${dueTime}` : ''}`,
       isCompleted: false,
       priority: priority,
       quadrant: quadrant,
-      tags: tags,
+      tags: allTags,
       dueDate: dueDate,
       subtasks: [],
       dependencies: [],
@@ -592,14 +761,17 @@ export default function App() {
 
     const updatedTasksList = [newTask, ...tasks];
     setTasks(updatedTasksList);
-    localStorage.setItem('hm_next_todos_tasks', JSON.stringify(updatedTasksList));
+    Storage.setItem('hm_next_todos_tasks', JSON.stringify(updatedTasksList));
 
-    // Toast/Alert notification
-    setClipboardAlert(`🎙️ 语音成功解析待办：\n「${title}」\n📅 截止时间: ${dueDate}\n🎯 四象限: 第 ${quadrant} 象限 (${priority === 'HIGH' ? '🔴高' : priority === 'MEDIUM' ? '🟡中' : '🔵低'}优先级)`);
+    // Toast notification
+    const timeInfo = dueTime ? ` ⏰ ${dueTime}` : '';
+    setClipboardAlert(`${sourceEmoji} 解析成功：\n「${title}」\n📅 ${dueDate}${timeInfo}\n🎯 第${quadrant}象限 (${priority === 'HIGH' ? '🔴高' : priority === 'MEDIUM' ? '🟡中' : '🔵低'}优先级)`);
     
     if (audioSynthRef.current) {
       audioSynthRef.current.synthesizeSuccessChime();
     }
+    
+    return newTask;
   };
 
   const handleStartVoiceInput = () => {
@@ -990,7 +1162,7 @@ export default function App() {
     };
     const updatedTemplates = [newTemplate, ...templates];
     setTemplates(updatedTemplates);
-    localStorage.setItem('hm_next_todos_templates', JSON.stringify(updatedTemplates));
+    Storage.setItem('hm_next_todos_templates', JSON.stringify(updatedTemplates));
     alert('💾 成功保存到本地项目预设模板，稍后可一键克隆导入。');
   };
 
@@ -1018,7 +1190,7 @@ export default function App() {
     }));
 
     handleSaveTasks([...newTasks, ...tasks]);
-    setActiveTab('LIST');
+    navigateTo('LIST');
     setIsHomeScreen(false);
     alert(`⚡️ 已成功导入「${template.name}」中的 ${newTasks.length} 个任务！`);
   };
@@ -1031,10 +1203,19 @@ export default function App() {
     }
     const filtered = templates.filter(t => t.id !== tplId);
     setTemplates(filtered);
-    localStorage.setItem('hm_next_todos_templates', JSON.stringify(filtered));
+    Storage.setItem('hm_next_todos_templates', JSON.stringify(filtered));
   };
 
   // 3. Focus Timer trigger controllers
+  const getFocusTitle = (taskId?: string, customTitle?: string) => {
+    if (customTitle) return customTitle;
+    if (taskId) {
+      const task = tasks.find(t => t.id === taskId);
+      return task ? task.title : '专注任务';
+    }
+    return '自律专注中';
+  };
+
   const handleStartFocusOnTask = (taskId: string) => {
     setActiveTaskId(taskId);
     setFocusMode('POMODORO');
@@ -1043,7 +1224,12 @@ export default function App() {
     setIsRunning(true);
     setIsPaused(false);
     setIsHomeScreen(false);
-    setActiveTab('POMODORO');
+    navigateTo('POMODORO');
+    
+    // 触发鸿蒙原生常驻通知/实况窗
+    if ((window as any).hmNotification) {
+      (window as any).hmNotification.startPomodoroLiveView(getFocusTitle(taskId), 25);
+    }
   };
 
   const handleStartTimer = (duration: number, mode: FocusMode, taskId?: string, customTitle?: string) => {
@@ -1054,42 +1240,44 @@ export default function App() {
     setCustomFocusTitle(customTitle || '');
     setIsRunning(true);
     setIsPaused(false);
+    
+    if ((window as any).hmNotification && mode !== 'STOPWATCH') {
+      (window as any).hmNotification.startPomodoroLiveView(getFocusTitle(taskId, customTitle), Math.ceil(duration / 60));
+    }
   };
 
   const handlePauseToggle = () => {
-    setIsPaused(!isPaused);
+    const nextPausedState = !isPaused;
+    setIsPaused(nextPausedState);
+    
+    if ((window as any).hmNotification && focusMode !== 'STOPWATCH') {
+      (window as any).hmNotification.updatePomodoroStatus(getFocusTitle(activeTaskId, customFocusTitle), timeRemaining, nextPausedState);
+    }
   };
 
   const handleStopTimer = () => {
     setIsRunning(false);
     setIsPaused(false);
     setTimeRemaining(0);
+    
+    if ((window as any).hmNotification) {
+      (window as any).hmNotification.cancelPomodoroNotification(false);
+    }
   };
 
-  // Pasteboard / Clipboard simulated automatic import (剪贴板智能气泡 NLP, P1)
+  // Pasteboard / Clipboard 智能解析导入 (真实 NLP 解析, P1)
   const handleImportClipboardText = () => {
     if (!clipboardAlert) return;
-
-    // Simple parser: Set Important & Urgent as tomorrow target
-    const parsedTask: Task = {
-      id: 'task-clip-' + Date.now(),
-      title: '一键生成的待办：' + clipboardAlert,
-      description: '导入自仿真系统剪贴板备忘录气泡。',
-      isCompleted: false,
-      priority: 'HIGH',
-      quadrant: 1, // Automatic VIP classification
-      tags: ['剪贴板', '会议'],
-      dueDate: new Date().toISOString().split('T')[0],
-      subtasks: [],
-      dependencies: [],
-      focusMinutes: 0,
-      createdAt: new Date().toISOString()
-    };
-
-    handleSaveTasks([parsedTask, ...tasks]);
+    
+    // 使用 NLP 引擎解析剪贴板文本
+    const newTask = parseAndAddTask(clipboardAlert, 'clipboard');
     setClipboardAlert(null);
-    setActiveTab('LIST');
-    alert('🎯 剪贴板带有地理代办事宜解析成功，极简待办卡片已一键添加至【第I象限】中！');
+    navigateTo('LIST');
+    if (newTask) {
+      // 清除上面 parseAndAddTask 设置的 clipboardAlert（因为它设了成功提示）
+      // 给用户一个简短的确认
+      setTimeout(() => setClipboardAlert(null), 3000);
+    }
   };
 
   // Compute tag clouds
@@ -1194,10 +1382,15 @@ export default function App() {
   }, [filteredTasks]);
 
   const filteredHabits = useMemo(() => {
-    // Only show habits when selecting default 'ALL' tag or matching the query search
-    if (selectedTag !== 'ALL') return [];
-    return habits.filter(h => h.title.toLowerCase().includes(searchQuery.toLowerCase()));
-  }, [habits, searchQuery, selectedTag]);
+    // 习惯打卡不受标签过滤影响，仅受搜索关键词筛选
+    // 修复：点击标签时不过滤「今日自律追踪」内容
+    return habits.filter(h => {
+      const matchesSearch = searchQuery
+        ? h.title.toLowerCase().includes(searchQuery.toLowerCase())
+        : true;
+      return matchesSearch;
+    });
+  }, [habits, searchQuery]);
 
   // Live countdown label
   const formatTimerLabel = () => {
@@ -1212,7 +1405,7 @@ export default function App() {
       {/* Fully responsive embedded app viewport container */}
       <div 
         id="app-embedded-container"
-        className={`w-full h-full relative flex flex-col md:max-w-2xl lg:max-w-4xl md:h-[94vh] md:rounded-[2.25rem] md:shadow-2xl md:border transition-all overflow-hidden ${
+        className={`w-full h-full relative flex flex-col md:max-w-2xl lg:max-w-4xl md:h-[94vh] md:rounded-[2.25rem] md:shadow-2xl md:border transition-all overflow-hidden pt-[env(safe-area-inset-top)] pb-[env(safe-area-inset-bottom)] ${
           darkMode 
             ? 'bg-[#1C1C1E] border-zinc-800/80 md:shadow-black/40' 
             : 'bg-[#EDEFF2] border-gray-200/50 md:shadow-gray-300/40'
@@ -1274,7 +1467,10 @@ export default function App() {
                 <div className="flex items-center gap-2.5">
                   <span className="font-extrabold text-[#007DFF] text-base font-sans tracking-tight">ZenFlow</span>
                   {isRunning && (
-                    <div className="bg-[#E8F3FF] px-2 py-0.5 rounded-full flex items-center gap-1 border border-blue-100/30 animate-pulse">
+                    <div 
+                      onClick={() => setActiveTab('POMODORO')}
+                      className="bg-[#E8F3FF] px-2 py-0.5 rounded-full flex items-center gap-1 border border-blue-100/30 animate-pulse cursor-pointer hover:bg-blue-100 transition-colors"
+                    >
                       <div className="w-1.5 h-1.5 rounded-full bg-[#007DFF]" />
                       <span className="text-[9.5px] font-bold text-[#007DFF] font-mono">
                         专注中: {formatTimerLabel()}
@@ -1391,7 +1587,7 @@ export default function App() {
                           onClick={() => {
                             const newVal = !groupByTagCluster;
                             setGroupByTagCluster(newVal);
-                            localStorage.setItem('hm_group_by_tag_cluster', String(newVal));
+                            Storage.setItem('hm_group_by_tag_cluster', String(newVal));
                             if (audioSynthRef.current) {
                               audioSynthRef.current.synthesizeHapticChime();
                             }
@@ -1871,14 +2067,14 @@ export default function App() {
 
                   {/* TAB 3: CALENDAR VIEW */}
                   {activeTab === 'CALENDAR' && (
-                    <div id="view-tab-calendar" className="h-full bg-white rounded-[2rem] p-4.5 shadow-2xs border border-gray-100 overflow-y-auto no-scrollbar">
+                    <div id="view-tab-calendar" className="h-full bg-white rounded-[2rem] p-4.5 shadow-2xs border border-gray-100 flex flex-col no-scrollbar">
                       <CalendarView
                         tasks={tasks}
                         onEditTask={handleEditTask}
+                        onToggleComplete={handleToggleComplete}
                         selectedDate={selectedDate}
                         onSelectDate={(date) => {
                           setSelectedDate(date);
-                          // Trigger mini modal or alert that they've picked date
                         }}
                       />
                     </div>
@@ -1934,7 +2130,7 @@ export default function App() {
                          id={`btn-tab-${tab.id}`}
                          key={tab.id}
                          onClick={() => {
-                           setActiveTab(tab.id);
+                           navigateTo(tab.id);
                            setIsHomeScreen(false);
                          }}
                          className={`flex flex-col items-center justify-center p-1 px-1 rounded-2xl cursor-pointer hover:bg-gray-100/50 transition-colors ${
@@ -1961,6 +2157,9 @@ export default function App() {
         {['LIST', 'CALENDAR', 'QUADRANT'].includes(activeTab) && (
           <motion.button
             id="fab-quick-task-create"
+            drag
+            dragConstraints={{ left: -window.innerWidth + 80, right: 0, top: -window.innerHeight + 150, bottom: 0 }}
+            dragMomentum={false}
             onClick={() => {
               setIsHomeScreen(false);
               handleAddTask();
@@ -2366,7 +2565,7 @@ export default function App() {
                         onChange={(e) => {
                           const val = e.target.checked;
                           setShowQuadrantsTab(val);
-                          localStorage.setItem('hm_show_quadrants_tab', String(val));
+                          Storage.setItem('hm_show_quadrants_tab', String(val));
                           if (audioSynthRef.current) audioSynthRef.current.synthesizeHapticChime();
                         }}
                         className="w-4 h-4 rounded border-gray-300 dark:border-zinc-700 text-[#007DFF] focus:ring-[#007DFF] cursor-pointer"
@@ -2385,7 +2584,7 @@ export default function App() {
                         onChange={(e) => {
                           const val = e.target.checked;
                           setShowHabitsTab(val);
-                          localStorage.setItem('hm_show_habits_tab', String(val));
+                          Storage.setItem('hm_show_habits_tab', String(val));
                           if (audioSynthRef.current) audioSynthRef.current.synthesizeHapticChime();
                         }}
                         className="w-4 h-4 rounded border-gray-300 dark:border-zinc-700 text-[#007DFF] focus:ring-[#007DFF] cursor-pointer"
@@ -2404,7 +2603,7 @@ export default function App() {
                         onChange={(e) => {
                           const val = e.target.checked;
                           setShowPomodoroTab(val);
-                          localStorage.setItem('hm_show_pomodoro_tab', String(val));
+                          Storage.setItem('hm_show_pomodoro_tab', String(val));
                           if (audioSynthRef.current) audioSynthRef.current.synthesizeHapticChime();
                         }}
                         className="w-4 h-4 rounded border-gray-300 dark:border-zinc-700 text-[#007DFF] focus:ring-[#007DFF] cursor-pointer"
@@ -2426,37 +2625,6 @@ export default function App() {
                     <Trash2 size={11} />
                     <span>清理所有已完成待办历史</span>
                   </button>
-                </div>
-
-
-
-                {/* 5. Standard checklist Templates integrated inside settings */}
-                <div className="space-y-2">
-                  <span className="text-[9.5px] font-bold text-gray-400 dark:text-gray-500 uppercase block">项目预设模板库</span>
-                  <div id="settings-templates-container" className="space-y-2">
-                    {templates.map(tpl => (
-                      <div
-                        id={`settings-tpl-${tpl.id}`}
-                        key={tpl.id}
-                        className="p-2.5 bg-gray-50 dark:bg-[#252529] rounded-xl border border-gray-150/40 dark:border-zinc-800 flex items-center justify-between gap-2"
-                      >
-                        <div className="min-w-0 flex-1">
-                          <h4 className="text-[10px] font-bold text-gray-800 dark:text-gray-[#EAEAEB] truncate">{tpl.name}</h4>
-                          <p className="text-[8.5px] text-gray-400 dark:text-gray-500 truncate mt-0.5 leading-tight">{tpl.description}</p>
-                        </div>
-                        <button
-                          id={`btn-settings-import-tpl-${tpl.id}`}
-                          onClick={() => {
-                            handleImportTemplate(tpl.id);
-                            setIsSettingsOpen(false);
-                          }}
-                          className="px-2.5 py-1 text-[9px] font-bold text-[#007DFF] bg-[#E8F3FF] dark:bg-[#007DFF]/10 rounded-lg hover:bg-blue-100 transition-colors cursor-pointer flex-shrink-0"
-                        >
-                          导入
-                        </button>
-                      </div>
-                    ))}
-                  </div>
                 </div>
               </div>
 

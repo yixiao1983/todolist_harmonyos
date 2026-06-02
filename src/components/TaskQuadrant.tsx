@@ -82,8 +82,8 @@ export function TaskQuadrant({
   });
 
   return (
-    <div className="relative w-full h-full select-none">
-      <div id="quadrant-container" className="grid grid-cols-2 gap-2.5 h-full">
+    <div className="relative w-full h-full select-none overflow-y-auto overflow-x-hidden">
+      <div id="quadrant-container" className="grid grid-cols-2 grid-rows-2 gap-2.5 h-full min-h-[380px]">
         {categories.map(cat => {
           const catTasks = getQuadrantTasks(cat.id);
           const isHoveredZone = activeDragOverQuad === cat.id;
@@ -95,7 +95,7 @@ export function TaskQuadrant({
               onDragOver={(e) => handleDragOver(e, cat.id)}
               onDragLeave={handleDragLeave}
               onDrop={(e) => handleDrop(e, cat.id)}
-              className={`rounded-[1.75rem] border p-3 flex flex-col h-[205px] bg-gradient-to-br transition-all duration-300 shadow-2xs hover:shadow-xs relative ${
+              className={`rounded-[1.75rem] border p-3 flex flex-col h-full bg-gradient-to-br transition-all duration-300 shadow-2xs hover:shadow-xs relative ${
                 isHoveredZone 
                   ? 'from-[#007DFF]/15 via-[#007DFF]/10 to-[#007DFF]/5 border-[#007DFF] dark:from-[#007DFF]/25 dark:to-transparent scale-[1.015] shadow-sm z-10 ring-2 ring-[#007DFF]/20' 
                   : cat.color

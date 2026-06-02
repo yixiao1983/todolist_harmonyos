@@ -144,7 +144,7 @@ export function PomodoroHub({
       
       {/* Immersive New Page View of Clock & Audio when Workspace is Active */}
       {isWorkspaceActive ? (
-        <div className="space-y-4 animate-fade-in">
+        <div className="space-y-4 relative z-0">
           
           {/* Header row to return back to standard focus library */}
           <div className="flex items-center justify-between bg-gray-50/70 dark:bg-zinc-900/40 border border-gray-150/30 dark:border-zinc-800/40 p-3 rounded-2xl">
@@ -444,7 +444,7 @@ export function PomodoroHub({
         </div>
       ) : (
         /* STANDARD VIEW Mode: Presets Library + Outside Control Buttons */
-        <div className="space-y-4 animate-fade-in text-left">
+        <div className="space-y-4 text-left relative z-0">
           
           {/* Presets items library list with absolutely NO surrounding card / border frame wrapper */}
           <div id="focus-presets-library-container" className="space-y-3 text-left relative pt-1">
