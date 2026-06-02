@@ -14,6 +14,7 @@ import { TaskQuadrant } from './components/TaskQuadrant';
 import { CalendarView } from './components/CalendarView';
 import { PomodoroHub } from './components/PomodoroHub';
 import { motion, AnimatePresence } from 'motion/react';
+import { getLocalISODate } from './utils/date';
 import { 
   Plus, 
   Search, 
@@ -45,12 +46,54 @@ import {
   ArrowUpDown,
   SlidersHorizontal,
   Mic,
-  MicOff
+  MicOff,
+  Mail,
+  Loader,
+  Send
 } from 'lucide-react';
 
-const INITIAL_TASKS: Task[] = [];
+const INITIAL_TASKS: Task[] = [
+  {
+    id: 'guide-task-1',
+    title: '了解如何使用四象限分配任务优先级',
+    description: '通过拖拽或者点击编辑，你可以将任务分配到不同的象限，从而更好地管理你的时间和精力。',
+    isCompleted: false,
+    priority: 'HIGH',
+    quadrant: 1,
+    tags: ['新手引导', '重要'],
+    dueDate: getLocalISODate(),
+    subtasks: [],
+    dependencies: [],
+    focusMinutes: 25,
+    createdAt: new Date().toISOString()
+  },
+  {
+    id: 'guide-task-2',
+    title: '尝试进行一次 25 分钟的番茄专注',
+    description: '点击右侧的番茄钟图标，或者在底部菜单切换到专注模式，开始你的第一次番茄钟。专注能够帮你大幅提高效率！',
+    isCompleted: false,
+    priority: 'MEDIUM',
+    quadrant: 2,
+    tags: ['新手引导', '专注'],
+    dueDate: getLocalISODate(),
+    subtasks: [],
+    dependencies: [],
+    focusMinutes: 0,
+    createdAt: new Date().toISOString()
+  }
+];
 
-const INITIAL_HABITS: Habit[] = [];
+const INITIAL_HABITS: Habit[] = [
+  {
+    id: 'guide-habit-1',
+    title: '每天早晨喝一杯温水',
+    createdAt: new Date().toISOString(),
+    completedDates: [],
+    periodType: 'DAILY',
+    startDate: getLocalISODate(),
+    endDate: '2099-12-31'
+  }
+];
 
 const DEFAULT_QUADRANTS: QuadrantCategory[] = [
   {
@@ -150,7 +193,7 @@ export default function App() {
   // Navigation tabs and layout states
   const [isHomeScreen, setIsHomeScreen] = useState(false);
   const [activeTab, setActiveTab] = useState<'LIST' | 'HABIT' | 'QUADRANT' | 'CALENDAR' | 'POMODORO' | 'TEMPLATES'>('LIST');
-  const [selectedDate, setSelectedDate] = useState(() => new Date().toISOString().split('T')[0]);
+  const [selectedDate, setSelectedDate] = useState(() => getLocalISODate());
 
   const [showHabitsTab, setShowHabitsTab] = useState<boolean>(() => {
     return Storage.getItem('hm_show_habits_tab') !== 'false';
@@ -172,11 +215,11 @@ export default function App() {
   // Habits form states for direct habit custom creation in Menu
   const [newHabitTitleVal, setNewHabitTitleVal] = useState('');
   const [newHabitPeriod, setNewHabitPeriod] = useState<'DAILY' | 'WEEKLY' | 'MONTHLY'>('DAILY');
-  const [newHabitStart, setNewHabitStart] = useState(() => new Date().toISOString().split('T')[0]);
+  const [newHabitStart, setNewHabitStart] = useState(() => getLocalISODate());
   const [newHabitEnd, setNewHabitEnd] = useState(() => {
     const d = new Date();
     d.setMonth(d.getMonth() + 3); // 3 months default
-    return d.toISOString().split('T')[0];
+    return getLocalISODate(d);
   });
   const [selectedWeeklyDays, setSelectedWeeklyDays] = useState<number[]>([]);
   const [selectedMonthlyDays, setSelectedMonthlyDays] = useState<number[]>([]);
@@ -220,7 +263,12 @@ export default function App() {
   const [editingTask, setEditingTask] = useState<Task | null>(null);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [isTemplateModalOpen, setIsTemplateModalOpen] = useState(false);
+  const [isConfirmClearModalOpen, setIsConfirmClearModalOpen] = useState(false);
   const [isAddHabitModalOpen, setIsAddHabitModalOpen] = useState(false);
+  const [isFeedbackModalOpen, setIsFeedbackModalOpen] = useState(false);
+  const [feedbackText, setFeedbackText] = useState('');
+  const [feedbackContact, setFeedbackContact] = useState('');
+  const [feedbackStatus, setFeedbackStatus] = useState<'idle' | 'sending' | 'success' | 'error'>('idle');
 
   // Initialize singular audio synthesizer ref to prevent duplicated sound assets
   const audioSynthRef = useRef<FocusAudioSynthesizer | null>(null);
@@ -253,12 +301,19 @@ export default function App() {
       }
       if (isTemplateModalOpen) {
         setIsTemplateModalOpen(false);
-        history.pushState({ tab: activeTab }, '', `#${activeTab.toLowerCase()}`);
+        return;
+      }
+      if (isConfirmClearModalOpen) {
+        setIsConfirmClearModalOpen(false);
         return;
       }
       if (isAddHabitModalOpen) {
         setIsAddHabitModalOpen(false);
         history.pushState({ tab: activeTab }, '', `#${activeTab.toLowerCase()}`);
+        return;
+      }
+      if (isFeedbackModalOpen) {
+        setIsFeedbackModalOpen(false);
         return;
       }
       // 回退到上一个 Tab
@@ -277,14 +332,14 @@ export default function App() {
     return () => {
       window.removeEventListener('popstate', handlePopState);
     };
-  }, [activeTab, isDrawerOpen, isSettingsOpen, isTemplateModalOpen, isAddHabitModalOpen]);
+  }, [activeTab, isDrawerOpen, isSettingsOpen, isTemplateModalOpen, isAddHabitModalOpen, isConfirmClearModalOpen, isFeedbackModalOpen]);
 
   // Initialize data on mount
   useEffect(() => {
     // Clear old prototype mock data (v2 flush)
-    if (!Storage.getItem('hm_next_v2_cleared')) {
+    if (!Storage.getItem('hm_next_v3_cleared')) {
       Storage.clear();
-      Storage.setItem('hm_next_v2_cleared', 'true');
+      Storage.setItem('hm_next_v3_cleared', 'true');
     }
 
     // Lazy instance of FocusAudioSynthesizer
@@ -345,33 +400,6 @@ export default function App() {
     }
 
 
-    // 暴露全局方法供鸿蒙原生层通过 runJavaScript 注入剪贴板文本
-    (window as any).__injectClipboardText = (text: string) => {
-      if (text && text.trim()) {
-        const cleanText = text.trim();
-        setClipboardAlert(cleanText);
-        // 自动解析并创建任务
-        const parsed = nlpParseText(cleanText);
-        const newTask: Task = {
-          id: Math.random().toString(36).substr(2, 9),
-          title: parsed.title,
-          priority: parsed.priority,
-          quadrant: parsed.quadrant,
-          dueDate: parsed.dueDate,
-          dueTime: parsed.dueTime,
-          isCompleted: false,
-          tags: parsed.tags,
-          subtasks: []
-        };
-        setTasks(prev => {
-          const updated = [...prev, newTask];
-          Storage.setItem('hm_next_todos_tasks', JSON.stringify(updated));
-          return updated;
-        });
-        setTimeout(() => setClipboardAlert(null), 3000); // 3秒后自动隐藏气泡
-      }
-    };
-
     // 暴露全局方法供鸿蒙原生层处理卡片 router action 跳转意图
     (window as any).__handleCardAction = (payloadStr: string) => {
       try {
@@ -379,9 +407,16 @@ export default function App() {
         if (payload && payload.params && payload.params.action) {
           const action = payload.params.action;
           if (action === 'startPomodoro') {
-            setActiveTab('POMODORO');
+            window.dispatchEvent(new CustomEvent('startPomodoroAction'));
           } else if (action === 'viewTask') {
             setActiveTab('LIST');
+          } else if (action === 'addTask') {
+            setActiveTab('LIST');
+            setIsDrawerOpen(true);
+          } else if (action === 'openPomodoro') {
+            setActiveTab('POMODORO');
+          } else if (action === 'viewHabit') {
+            setActiveTab('HABIT');
           }
         }
       } catch (e) {
@@ -389,45 +424,10 @@ export default function App() {
       }
     };
 
-    // 主动拉取一次原生层可能已经准备好的剪切板数据（解决首次启动时序差异）
-    if ((window as any).hmNativeStorage && (window as any).hmNativeStorage.getClipboardPayload) {
-      try {
-        const payloadStr = (window as any).hmNativeStorage.getClipboardPayload();
-        if (payloadStr) {
-          const parsed = JSON.parse(payloadStr);
-          if (parsed && parsed.text && parsed.text.trim()) {
-            const cleanText = parsed.text.trim();
-            setClipboardAlert(cleanText);
-            const nlpParsed = nlpParseText(cleanText);
-            const newTask: Task = {
-              id: Math.random().toString(36).substr(2, 9),
-              title: nlpParsed.title,
-              priority: nlpParsed.priority,
-              quadrant: nlpParsed.quadrant,
-              dueDate: nlpParsed.dueDate,
-              dueTime: nlpParsed.dueTime,
-              isCompleted: false,
-              tags: nlpParsed.tags,
-              subtasks: []
-            };
-            setTasks(prev => {
-              const updated = [...prev, newTask];
-              Storage.setItem('hm_next_todos_tasks', JSON.stringify(updated));
-              return updated;
-            });
-            setTimeout(() => setClipboardAlert(null), 3000);
-          }
-        }
-      } catch (e) {
-        console.error('Failed to get initial clipboard payload', e);
-      }
-    }
-
     return () => {
       if (stopwatchIntervalRef.current) {
         clearInterval(stopwatchIntervalRef.current);
       }
-      delete (window as any).__injectClipboardText;
     };
   }, []);
 
@@ -591,7 +591,7 @@ export default function App() {
   // 从自然语言文本中提取：时间、日期、优先级、标签、标题
   const nlpParseText = (text: string) => {
     const now = new Date();
-    let dueDate = now.toISOString().split('T')[0]; // Default today
+    let dueDate = getLocalISODate(now); // Default today
     let dueTime = ''; // HH:MM format
     let quadrant: Quadrant = 2;
     let priority: Priority = 'MEDIUM';
@@ -611,13 +611,13 @@ export default function App() {
     // ---- 2. 解析日期 ----
     if (text.includes('明天') || text.includes('次日')) {
       const d = new Date(now); d.setDate(d.getDate() + 1);
-      dueDate = d.toISOString().split('T')[0];
+      dueDate = getLocalISODate(d);
     } else if (text.includes('后天')) {
       const d = new Date(now); d.setDate(d.getDate() + 2);
-      dueDate = d.toISOString().split('T')[0];
+      dueDate = getLocalISODate(d);
     } else if (text.includes('大后天')) {
       const d = new Date(now); d.setDate(d.getDate() + 3);
-      dueDate = d.toISOString().split('T')[0];
+      dueDate = getLocalISODate(d);
     } else if (text.includes('下周')) {
       // 解析下周几
       const weekDayMatch = text.match(/下周([一二三四五六日天])/);
@@ -628,14 +628,14 @@ export default function App() {
         const currentDay = d.getDay();
         let daysUntil = (targetDay - currentDay + 7) % 7 + 7; // 保证是下周
         d.setDate(d.getDate() + daysUntil);
-        dueDate = d.toISOString().split('T')[0];
+        dueDate = getLocalISODate(d);
       } else {
         const d = new Date(now); d.setDate(d.getDate() + 7);
-        dueDate = d.toISOString().split('T')[0];
+        dueDate = getLocalISODate(d);
       }
     } else if (text.includes('下个月') || text.includes('下月')) {
       const d = new Date(now); d.setMonth(d.getMonth() + 1);
-      dueDate = d.toISOString().split('T')[0];
+      dueDate = getLocalISODate(d);
     } else {
       // 解析 周几/星期几
       const weekDayMatch = text.match(/(?:这?(?:周|星期))([一二三四五六日天])/);
@@ -647,7 +647,7 @@ export default function App() {
         let daysUntil = (targetDay - currentDay + 7) % 7;
         if (daysUntil === 0) daysUntil = 7; // 如果是今天，则指下周
         d.setDate(d.getDate() + daysUntil);
-        dueDate = d.toISOString().split('T')[0];
+        dueDate = getLocalISODate(d);
       }
       // 解析 M月D日 格式
       const dateMatch = text.match(/(\d{1,2})月(\d{1,2})[日号]/);
@@ -656,7 +656,7 @@ export default function App() {
         const day = parseInt(dateMatch[2]);
         const d = new Date(now.getFullYear(), month, day);
         if (d < now) d.setFullYear(d.getFullYear() + 1); // 过去的日期默认明年
-        dueDate = d.toISOString().split('T')[0];
+        dueDate = getLocalISODate(d);
       }
     }
 
@@ -855,10 +855,9 @@ export default function App() {
 
   // A complete clear completed historical records (一键清理历史, P0)
   const handleClearCompletedHistory = () => {
-    if (window.confirm('您确定要清空所有已完成的历史任务吗？这可以帮助您保持列表清爽。')) {
-      const updated = tasks.filter(t => !t.isCompleted);
-      handleSaveTasks(updated);
-    }
+    const updated = tasks.filter(t => !t.isCompleted);
+    handleSaveTasks(updated);
+    setIsConfirmClearModalOpen(false);
   };
 
   // Habit management handlers
@@ -870,11 +869,11 @@ export default function App() {
       createdAt: new Date().toISOString(),
       completedDates: [],
       periodType: 'DAILY',
-      startDate: new Date().toISOString().split('T')[0],
+      startDate: getLocalISODate(),
       endDate: (() => {
         const d = new Date();
         d.setMonth(d.getMonth() + 3);
-        return d.toISOString().split('T')[0];
+        return getLocalISODate(d);
       })()
     };
     const updated = [...habits, newHabit];
@@ -894,7 +893,7 @@ export default function App() {
   };
 
   const handleToggleHabitToday = (habitId: string) => {
-    const todayStr = new Date().toISOString().split('T')[0];
+    const todayStr = getLocalISODate();
     const updated = habits.map(h => {
       if (h.id === habitId) {
         const exists = h.completedDates.includes(todayStr);
@@ -1178,7 +1177,7 @@ export default function App() {
       priority: bt.priority,
       quadrant: bt.quadrant,
       tags: [...bt.tags, template.name.substring(0, 4)],
-      dueDate: new Date().toISOString().split('T')[0],
+      dueDate: getLocalISODate(),
       subtasks: bt.subtasks.map((title, subidx) => ({
         id: `sub-init-tpl-${subidx}-${Date.now()}`,
         title,
@@ -1197,10 +1196,6 @@ export default function App() {
 
   const handleDeleteTemplate = (tplId: string, e: React.MouseEvent) => {
     e.stopPropagation();
-    if (tplId === 'hm-release' || tplId === 'weekly-efficiency' || tplId === 'travel-packing') {
-      alert('系统内置标准模板无法被清除。');
-      return;
-    }
     const filtered = templates.filter(t => t.id !== tplId);
     setTemplates(filtered);
     Storage.setItem('hm_next_todos_templates', JSON.stringify(filtered));
@@ -1245,6 +1240,17 @@ export default function App() {
       (window as any).hmNotification.startPomodoroLiveView(getFocusTitle(taskId, customTitle), Math.ceil(duration / 60));
     }
   };
+
+  useEffect(() => {
+    const handleStartPomodoroEvent = () => {
+      setActiveTab('POMODORO');
+      handleStartTimer(25 * 60, 'POMODORO');
+    };
+    window.addEventListener('startPomodoroAction', handleStartPomodoroEvent);
+    return () => {
+      window.removeEventListener('startPomodoroAction', handleStartPomodoroEvent);
+    };
+  }, []);
 
   const handlePauseToggle = () => {
     const nextPausedState = !isPaused;
@@ -1340,7 +1346,7 @@ export default function App() {
 
   const todayStr = useMemo(() => {
     // Return today's date in YYYY-MM-DD
-    return new Date().toISOString().split('T')[0];
+    return getLocalISODate();
   }, []);
 
   const overdueTasks = useMemo(() => {
@@ -1482,6 +1488,17 @@ export default function App() {
                 <div className="flex items-center gap-2">
                   <span className="text-[10px] text-gray-400 font-extrabold hidden sm:inline">2026年5月27日 星期三</span>
                   
+                  {/* Feedback Entry Button */}
+                  <button
+                    id="btn-header-feedback-toggle"
+                    onClick={() => setIsFeedbackModalOpen(true)}
+                    title="产品意见与建议"
+                    className="w-8 h-8 text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-500/10 hover:bg-indigo-100 dark:hover:bg-[#1f1e33] rounded-xl transition-all border border-indigo-500/10 flex items-center justify-center cursor-pointer relative"
+                  >
+                    <Mail size={14} className="text-indigo-600 dark:text-indigo-400" />
+                    <span className="absolute top-1 right-1 w-1.5 h-1.5 bg-rose-500 rounded-full border border-white dark:border-[#1C1C1E]"></span>
+                  </button>
+
                   {/* Template Import Button */}
                   <button
                     id="btn-header-templates-toggle"
@@ -1791,10 +1808,6 @@ export default function App() {
 
                           {/* --- Section 2: 当日任务列表 (Blue Accent) --- */}
                           <div className="space-y-2">
-                            <div className="flex items-center gap-1.5 pl-1">
-                              <CheckCircle2 className="text-[#007DFF]" size={11} />
-                              <h4 className="text-[10px] font-extrabold text-[#007DFF] uppercase tracking-widest">今日安排任务 ({todayTasks.length})</h4>
-                            </div>
                             {todayTasks.length === 0 ? (
                               <div className="p-4 bg-white/40 dark:bg-zinc-805/20 rounded-2xl border border-gray-150/10 dark:border-zinc-800 text-center text-gray-400 dark:text-zinc-650 text-[10px] font-semibold">
                                 今日无代办安排（好好休息，或者添加新安排吧！）
@@ -2052,7 +2065,7 @@ export default function App() {
                             priority: q === 1 ? 'HIGH' : q === 2 ? 'MEDIUM' : 'LOW',
                             quadrant: q,
                             tags: ['工作'],
-                            dueDate: new Date().toISOString().split('T')[0],
+                            dueDate: getLocalISODate(),
                             subtasks: [],
                             dependencies: [],
                             focusMinutes: 0,
@@ -2067,7 +2080,7 @@ export default function App() {
 
                   {/* TAB 3: CALENDAR VIEW */}
                   {activeTab === 'CALENDAR' && (
-                    <div id="view-tab-calendar" className="h-full bg-white rounded-[2rem] p-4.5 shadow-2xs border border-gray-100 flex flex-col no-scrollbar">
+                    <div id="view-tab-calendar" className="h-full flex flex-col no-scrollbar">
                       <CalendarView
                         tasks={tasks}
                         onEditTask={handleEditTask}
@@ -2177,7 +2190,7 @@ export default function App() {
               damping: 20
             }}
             title="快捷创建任务"
-            className="absolute bottom-18 right-5 w-12 h-12 bg-[#007DFF] hover:bg-[#0066CC] dark:bg-blue-600 dark:hover:bg-blue-700 text-white rounded-full shadow-lg hover:shadow-xl flex items-center justify-center cursor-pointer z-30 border border-white/10"
+            className="absolute bottom-28 right-5 w-12 h-12 bg-[#007DFF] hover:bg-[#0066CC] dark:bg-blue-600 dark:hover:bg-blue-700 text-white rounded-full shadow-lg hover:shadow-xl flex items-center justify-center cursor-pointer z-30 border border-white/10"
           >
             <Plus size={22} className="stroke-[3]" />
           </motion.button>
@@ -2268,14 +2281,12 @@ export default function App() {
                           一键克隆导入这组任务
                         </button>
                         
-                        {tpl.id !== 'hm-release' && tpl.id !== 'weekly-efficiency' && tpl.id !== 'travel-packing' && (
-                          <button
-                            onClick={(e) => handleDeleteTemplate(tpl.id, e)}
-                            className="p-1 px-2.5 bg-rose-50 hover:bg-rose-100 text-rose-600 rounded-xl text-[10px] font-bold transition-colors cursor-pointer"
-                          >
-                            清除
-                          </button>
-                        )}
+                        <button
+                          onClick={(e) => handleDeleteTemplate(tpl.id, e)}
+                          className="p-1 px-2.5 bg-rose-50 hover:bg-rose-100 text-rose-600 rounded-xl text-[10px] font-bold transition-colors cursor-pointer"
+                        >
+                          清除
+                        </button>
                       </div>
                     </div>
                   ))
@@ -2617,7 +2628,7 @@ export default function App() {
                   <span className="text-[9.5px] font-bold text-gray-400 dark:text-gray-500 uppercase block">快捷存储管家</span>
                   <button
                     onClick={() => {
-                      handleClearCompletedHistory();
+                      setIsConfirmClearModalOpen(true);
                       setIsSettingsOpen(false);
                     }}
                     className="w-full p-2.5 bg-rose-50 hover:bg-rose-100/60 dark:bg-rose-500/10 dark:hover:bg-rose-500/20 text-rose-500 dark:text-rose-400 border border-rose-200/20 dark:border-rose-500/10 font-bold rounded-xl text-[10.5px] text-center flex items-center justify-center gap-1 transition-colors cursor-pointer"
@@ -2626,12 +2637,213 @@ export default function App() {
                     <span>清理所有已完成待办历史</span>
                   </button>
                 </div>
+
+                {/* 3. Feedback Entry */}
+                <div className="space-y-1.5 mt-2">
+                  <span className="text-[9.5px] font-bold text-gray-400 dark:text-gray-500 uppercase block">意见反馈</span>
+                  <button
+                    onClick={() => {
+                      setIsSettingsOpen(false);
+                      setIsFeedbackModalOpen(true);
+                    }}
+                    className="w-full p-2.5 bg-blue-50 hover:bg-blue-100/60 dark:bg-blue-500/10 dark:hover:bg-blue-500/20 text-blue-500 dark:text-blue-400 border border-blue-200/20 dark:border-blue-500/10 font-bold rounded-xl text-[10.5px] text-center flex items-center justify-center gap-1 transition-colors cursor-pointer"
+                  >
+                    <Mail size={11} />
+                    <span>撰写意见反馈</span>
+                  </button>
+                </div>
               </div>
 
               <div className="mt-4 pt-3 border-t border-gray-100 dark:border-zinc-850 flex items-center justify-between text-[8px] text-gray-400 font-mono font-bold leading-none">
                 <span>ZenFlow v1.8 • Style Bento</span>
                 <span>HarmonyOS NEXT Design</span>
               </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      <AnimatePresence>
+        {isConfirmClearModalOpen && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[60] bg-black/40 backdrop-blur-sm flex items-center justify-center p-6"
+            onClick={() => setIsConfirmClearModalOpen(false)}
+          >
+            <motion.div
+              initial={{ scale: 0.95, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.95, opacity: 0 }}
+              onClick={(e) => e.stopPropagation()}
+              className="w-full max-w-xs bg-white dark:bg-[#1E1E20] rounded-3xl p-6 shadow-2xl"
+            >
+              <div className="flex flex-col items-center text-center space-y-4">
+                <div className="w-12 h-12 bg-rose-50 dark:bg-rose-500/10 text-rose-500 rounded-full flex items-center justify-center">
+                  <Trash2 size={24} />
+                </div>
+                <div>
+                  <h3 className="text-sm font-bold text-gray-900 dark:text-gray-100">确认清理历史任务？</h3>
+                  <p className="text-xs text-gray-500 mt-1">您确定要清空所有已完成的历史任务吗？这可以帮助您保持列表清爽，此操作不可撤销。</p>
+                </div>
+                <div className="flex w-full gap-3 pt-2">
+                  <button
+                    onClick={() => setIsConfirmClearModalOpen(false)}
+                    className="flex-1 py-2.5 bg-gray-100 dark:bg-zinc-800 text-gray-600 dark:text-gray-300 font-bold text-xs rounded-xl transition-colors cursor-pointer"
+                  >
+                    取消
+                  </button>
+                  <button
+                    onClick={handleClearCompletedHistory}
+                    className="flex-1 py-2.5 bg-rose-500 hover:bg-rose-600 text-white font-bold text-xs rounded-xl transition-colors cursor-pointer"
+                  >
+                    确认清理
+                  </button>
+                </div>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* 意见反馈弹窗 Feedback Modal */}
+      <AnimatePresence>
+        {isFeedbackModalOpen && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[60] bg-black/40 backdrop-blur-sm flex flex-col items-center justify-end sm:justify-center p-0 sm:p-6"
+            onClick={() => setIsFeedbackModalOpen(false)}
+          >
+            <motion.div
+              initial={{ y: '100%' }}
+              animate={{ y: 0 }}
+              exit={{ y: '100%' }}
+              transition={{ type: 'spring', damping: 25, stiffness: 300 }}
+              onClick={(e) => e.stopPropagation()}
+              className="w-full sm:max-w-md bg-[#F2F2F7] dark:bg-[#121214] rounded-t-3xl sm:rounded-3xl p-5 shadow-2xl flex flex-col max-h-[85vh]"
+            >
+              <div className="flex justify-between items-center mb-4">
+                <div className="flex items-center gap-2 text-gray-900 dark:text-gray-100">
+                  <div className="w-8 h-8 rounded-full bg-blue-100 dark:bg-blue-500/20 text-blue-500 flex items-center justify-center">
+                    <Mail size={16} />
+                  </div>
+                  <h3 className="text-base font-extrabold tracking-tight">产品意见反馈</h3>
+                </div>
+                <button
+                  onClick={() => {
+                    setIsFeedbackModalOpen(false);
+                    setFeedbackStatus('idle');
+                  }}
+                  className="w-8 h-8 flex items-center justify-center rounded-full bg-gray-200/50 dark:bg-zinc-800 text-gray-500 hover:text-gray-900 dark:hover:text-gray-300"
+                >
+                  <X size={16} strokeWidth={3} />
+                </button>
+              </div>
+
+              <div className="flex-1 overflow-y-auto mb-4">
+                <div className="space-y-4">
+                  <p className="text-[11px] text-gray-500 dark:text-zinc-400 font-medium">
+                    您的每一个建议，都是我们不断进化的阶梯。请畅所欲言！
+                  </p>
+                  <div>
+                    <label className="text-xs font-bold text-gray-500 uppercase ml-1 mb-1 block">您的建议或遇到的问题 <span className="text-rose-500">*</span></label>
+                    <textarea
+                      value={feedbackText}
+                      onChange={(e) => setFeedbackText(e.target.value)}
+                      placeholder="请详细描述您的建议或遇到的问题..."
+                      className="w-full p-3.5 bg-white dark:bg-[#1C1C1E] border border-gray-200 dark:border-zinc-800 rounded-2xl text-sm text-gray-900 dark:text-gray-100 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#007DFF]/50 resize-none h-32 font-medium"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-xs font-bold text-gray-500 uppercase ml-1 mb-1 block">联系方式 <span className="text-gray-400 font-normal lowercase">(选填)</span></label>
+                    <input
+                      type="text"
+                      value={feedbackContact}
+                      onChange={(e) => setFeedbackContact(e.target.value)}
+                      placeholder="留下邮箱或微信号，方便我们回复您"
+                      className="w-full p-3.5 bg-white dark:bg-[#1C1C1E] border border-gray-200 dark:border-zinc-800 rounded-2xl text-sm text-gray-900 dark:text-gray-100 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#007DFF]/50 font-medium"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {feedbackStatus === 'success' ? (
+                <div className="w-full py-3.5 bg-emerald-50 dark:bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 font-bold rounded-2xl text-center shadow-inner flex items-center justify-center gap-2">
+                  <CheckSquare size={18} />
+                  发送成功，感谢您的反馈！
+                </div>
+              ) : (
+                <button
+                  disabled={feedbackStatus === 'sending'}
+                  onClick={async () => {
+                    if (!feedbackText.trim()) {
+                      alert('请输入反馈内容');
+                      return;
+                    }
+                    
+                    setFeedbackStatus('sending');
+                    
+                    try {
+                      // 使用 Web3Forms (免费无后端表单服务) 或 Webhook
+                      // 替换 YOUR_ACCESS_KEY 为你在 web3forms.com 注册的真实 Key
+                      const formData = new FormData();
+                      formData.append("access_key", "433cce23-fba2-4a98-9cc4-f4a6ed5bfb22");
+                      formData.append("subject", "ZenFlow App 意见反馈");
+                      formData.append("message", feedbackText);
+                      if (feedbackContact) {
+                        formData.append("contact", feedbackContact);
+                      }
+
+                      // 模拟发送 (真实环境取消下方注释并使用真实Key)
+                      await fetch('https://api.web3forms.com/submit', {
+                        method: 'POST',
+                        body: formData
+                      });
+                      
+                      // 为了演示效果，设置一个 1.5 秒的延迟模拟网络请求
+                      await new Promise(resolve => setTimeout(resolve, 1500));
+                      
+                      setFeedbackStatus('success');
+                      setFeedbackText('');
+                      setFeedbackContact('');
+                      
+                      // 3秒后自动关闭
+                      setTimeout(() => {
+                        setIsFeedbackModalOpen(false);
+                        setFeedbackStatus('idle');
+                      }, 3000);
+                      
+                    } catch (error) {
+                      setFeedbackStatus('error');
+                      alert('发送失败，请检查网络连接。');
+                    }
+                  }}
+                  className={`w-full py-3.5 font-bold rounded-2xl shadow-xl transition-all flex items-center justify-center gap-2 ${
+                    feedbackStatus === 'sending' 
+                      ? 'bg-gray-300 dark:bg-zinc-700 text-gray-500 cursor-not-allowed' 
+                      : feedbackStatus === 'error'
+                      ? 'bg-rose-500 hover:bg-rose-600 text-white shadow-rose-500/20'
+                      : 'bg-[#007DFF] hover:bg-[#0066CC] active:scale-[0.98] text-white shadow-blue-500/20'
+                  }`}
+                >
+                  {feedbackStatus === 'sending' ? (
+                    <>
+                      <Loader className="animate-spin" size={16} />
+                      正在发送中...
+                    </>
+                  ) : feedbackStatus === 'error' ? (
+                    '发送失败，点击重试'
+                  ) : (
+                    <>
+                      <Send size={16} />
+                      直接提交反馈
+                    </>
+                  )}
+                </button>
+              )}
             </motion.div>
           </motion.div>
         )}

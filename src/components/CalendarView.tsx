@@ -6,6 +6,7 @@
 import React, { useState } from 'react';
 import { Task } from '../types';
 import { Calendar, ChevronLeft, ChevronRight, ChevronDown, CheckSquare, ListTodo, Layers, Sparkles } from 'lucide-react';
+import { getLocalISODate } from '../utils/date';
 
 interface CalendarViewProps {
   tasks: Task[];
@@ -18,7 +19,7 @@ interface CalendarViewProps {
 type CalendarLevel = 'DAY' | 'WEEK' | 'MONTH' | 'YEAR';
 
 export function CalendarView({ tasks, onEditTask, onToggleComplete, selectedDate, onSelectDate }: CalendarViewProps) {
-  const [currentLevel, setCurrentLevel] = useState<CalendarLevel>('MONTH');
+  const [currentLevel, setCurrentLevel] = useState<CalendarLevel>('DAY');
   const [showLevelDropdown, setShowLevelDropdown] = useState(false);
   
   // Pivot date management (defaulting to current date)
@@ -49,7 +50,7 @@ export function CalendarView({ tasks, onEditTask, onToggleComplete, selectedDate
   const jumpToToday = () => {
     const today = new Date();
     setPivotDate(today);
-    onSelectDate(today.toISOString().split('T')[0]);
+    onSelectDate(getLocalISODate(today));
   };
 
   // Helper formats
@@ -133,12 +134,12 @@ export function CalendarView({ tasks, onEditTask, onToggleComplete, selectedDate
     const dayTasks = tasks.filter(t => t.dueDate === dateStr);
 
     return (
-      <div id="calendar-day-flow" className="flex flex-col bg-white rounded-3xl p-4 border border-gray-100">
+      <div id="calendar-day-flow" className="flex flex-col">
 
         {dayTasks.length === 0 ? (
           <div className="flex-1 flex flex-col items-center justify-center py-10 opacity-50">
-            <ListTodo size={28} className="text-gray-300" />
-            <p className="text-[11px] text-gray-400 mt-2 font-semibold">今日暂无行程，享受专注的一天吧</p>
+            <ListTodo size={28} className="text-gray-300 dark:text-zinc-700" />
+            <p className="text-[11px] text-gray-400 dark:text-zinc-500 mt-2 font-semibold">今日暂无行程，享受专注的一天吧</p>
           </div>
         ) : (
           <div className="space-y-2">
@@ -149,10 +150,10 @@ export function CalendarView({ tasks, onEditTask, onToggleComplete, selectedDate
                 onClick={() => onEditTask(t)}
                 className={`p-3 rounded-2xl border text-left cursor-pointer transition-all hover:translate-x-0.5 ${
                   t.isCompleted 
-                    ? 'bg-gray-50 border-gray-150 text-gray-400' 
+                    ? 'bg-gray-50 border-gray-150 text-gray-400 dark:bg-zinc-800/50 dark:border-zinc-800 dark:text-zinc-500' 
                     : t.priority === 'HIGH' 
-                      ? 'bg-rose-50/50 border-rose-100 text-gray-800 hover:bg-rose-50' 
-                      : 'bg-blue-50/30 border-blue-100 text-gray-800 hover:bg-blue-50/75'
+                      ? 'bg-rose-50/50 border-rose-100 text-gray-800 hover:bg-rose-50 dark:bg-rose-500/10 dark:border-rose-500/20 dark:text-gray-200 dark:hover:bg-rose-500/20' 
+                      : 'bg-blue-50/30 border-blue-100 text-gray-800 hover:bg-blue-50/75 dark:bg-blue-500/10 dark:border-blue-500/20 dark:text-gray-200 dark:hover:bg-blue-500/20'
                 }`}
               >
                 <div className="flex items-center justify-between">
@@ -160,7 +161,7 @@ export function CalendarView({ tasks, onEditTask, onToggleComplete, selectedDate
                     <button 
                       onClick={(e) => { e.stopPropagation(); onToggleComplete && onToggleComplete(t.id); }}
                       className={`shrink-0 w-4 h-4 rounded-[4px] border-2 flex items-center justify-center transition-all ${
-                        t.isCompleted ? 'bg-gray-300 border-gray-300' : 'bg-transparent border-gray-300 hover:border-gray-400'
+                        t.isCompleted ? 'bg-gray-300 border-gray-300 dark:bg-zinc-700 dark:border-zinc-700' : 'bg-transparent border-gray-300 hover:border-gray-400 dark:border-zinc-600 dark:hover:border-zinc-500'
                       }`}
                     >
                       {t.isCompleted && <CheckSquare size={12} className="text-white" />}
@@ -168,13 +169,13 @@ export function CalendarView({ tasks, onEditTask, onToggleComplete, selectedDate
                     <span className={`text-xs font-bold truncate ${t.isCompleted && 'line-through opacity-60'}`}>{t.title}</span>
                   </div>
                   <span className={`shrink-0 text-[9px] px-1.5 py-0.2 rounded-sm uppercase font-black ${
-                    t.priority === 'HIGH' ? 'bg-rose-100 text-rose-700' : 'bg-gray-100 text-gray-500'
+                    t.priority === 'HIGH' ? 'bg-rose-100 text-rose-700 dark:bg-rose-500/20 dark:text-rose-400' : 'bg-gray-100 text-gray-500 dark:bg-zinc-800 dark:text-gray-400'
                   }`}>
                     {t.priority}
                   </span>
                 </div>
-                <div className="flex items-center space-x-2 mt-1.5 text-[10px] text-gray-400">
-                  <span className="bg-gray-150 px-1.5 py-0.2 rounded-xs font-semibold">象限 {t.quadrant}</span>
+                <div className="flex items-center space-x-2 mt-1.5 text-[10px] text-gray-400 dark:text-zinc-500">
+                  <span className="bg-gray-150 px-1.5 py-0.2 rounded-xs font-semibold dark:bg-zinc-800">象限 {t.quadrant}</span>
                   {t.tags.map((tag, idx) => (
                     <span key={idx}>#{tag}</span>
                   ))}
@@ -208,15 +209,15 @@ export function CalendarView({ tasks, onEditTask, onToggleComplete, selectedDate
               }}
               className={`rounded-2xl p-2.5 flex items-center gap-3 border transition-all text-left cursor-pointer ${
                 isSelected 
-                  ? 'bg-gray-950 border-gray-950 text-white shadow-xs' 
+                  ? 'bg-gray-950 border-gray-950 text-white shadow-xs dark:bg-blue-500/20 dark:border-blue-500/30' 
                   : isToday 
-                    ? 'bg-blue-50 text-blue-600 border-blue-200' 
-                    : 'bg-white text-gray-850 border-gray-100 hover:border-gray-200'
+                    ? 'bg-blue-50 text-blue-600 border-blue-200 dark:bg-blue-500/10 dark:border-blue-500/20 dark:text-blue-400' 
+                    : 'bg-white text-gray-850 border-gray-100 hover:border-gray-200 dark:bg-zinc-900 dark:text-gray-300 dark:border-zinc-800 dark:hover:border-zinc-700'
               }`}
             >
               {/* Day info marker on left */}
               <div className="flex flex-col items-center justify-center min-w-[42px] border-r border-gray-100/50 pr-2">
-                <span className={`text-[9.5px] font-black ${isSelected ? 'text-gray-300' : 'text-gray-400'}`}>
+                <span className={`text-[9.5px] font-black ${isSelected ? 'text-gray-300 dark:text-blue-300' : 'text-gray-400 dark:text-zinc-500'}`}>
                   周{WEEKDAYS[i]}
                 </span>
                 <span className="text-sm font-black font-mono mt-0.5 leading-none">{wd.getDate()}</span>
@@ -225,7 +226,7 @@ export function CalendarView({ tasks, onEditTask, onToggleComplete, selectedDate
               {/* Task list inside this weekday */}
               <div className="flex-1 flex flex-col gap-1.5 overflow-hidden">
                 {wdTasks.length === 0 ? (
-                  <span className={`text-[10px] ${isSelected ? 'text-gray-500' : 'text-gray-300'} italic`}>暂无安排</span>
+                  <span className={`text-[10px] ${isSelected ? 'text-gray-500 dark:text-blue-500/60' : 'text-gray-300 dark:text-zinc-700'} italic`}>暂无安排</span>
                 ) : (
                   wdTasks.map(t => (
                     <div 
@@ -236,18 +237,18 @@ export function CalendarView({ tasks, onEditTask, onToggleComplete, selectedDate
                       }}
                       className={`text-[10.5px] px-2 py-1.5 rounded-lg border flex items-center gap-1.5 transition-all hover:scale-[1.01] ${
                         isSelected 
-                          ? 'bg-white/15 text-white border-white/10 hover:bg-white/20' 
+                          ? 'bg-white/15 text-white border-white/10 hover:bg-white/20 dark:bg-blue-500/20 dark:border-blue-500/30 dark:text-blue-200' 
                           : t.isCompleted 
-                            ? 'bg-gray-100 border-gray-200 text-gray-450 line-through' 
+                            ? 'bg-gray-100 border-gray-200 text-gray-450 line-through dark:bg-zinc-800/50 dark:border-zinc-800 dark:text-zinc-500' 
                             : t.priority === 'HIGH' 
-                              ? 'bg-rose-50 text-rose-700 border-rose-100 font-bold' 
-                              : 'bg-blue-50 text-blue-700 border-blue-100 font-bold'
+                              ? 'bg-rose-50 text-rose-700 border-rose-100 font-bold dark:bg-rose-500/10 dark:border-rose-500/20 dark:text-rose-400' 
+                              : 'bg-blue-50 text-blue-700 border-blue-100 font-bold dark:bg-blue-500/10 dark:border-blue-500/20 dark:text-blue-400'
                       }`}
                     >
                       <button 
                         onClick={(e) => { e.stopPropagation(); onToggleComplete && onToggleComplete(t.id); }}
                         className={`shrink-0 w-3.5 h-3.5 rounded-[4px] border-2 flex items-center justify-center transition-all ${
-                          t.isCompleted ? 'bg-gray-400 border-gray-400' : 'bg-transparent border-current opacity-60 hover:opacity-100'
+                          t.isCompleted ? 'bg-gray-400 border-gray-400 dark:bg-zinc-700 dark:border-zinc-700' : 'bg-transparent border-current opacity-60 hover:opacity-100'
                         }`}
                       >
                         {t.isCompleted && <CheckSquare size={10} className="text-white" />}
@@ -271,9 +272,9 @@ export function CalendarView({ tasks, onEditTask, onToggleComplete, selectedDate
     const selectedDayTasks = tasks.filter(t => t.dueDate === selectedDateStr);
 
     return (
-      <div id="calendar-view-container" className="h-full flex flex-col bg-gray-50/30 overflow-y-auto overflow-x-hidden relative">
+      <div id="calendar-month-flow" className="flex flex-col gap-2 relative">
         {/* Week Days Headers */}
-        <div className="grid grid-cols-7 text-center mb-1 bg-gray-100/50 p-1 rounded-xl">
+        <div className="grid grid-cols-7 text-center mb-1 p-1">
           {WEEKDAYS.map((wd, i) => (
             <span key={i} className="text-[10px] font-extrabold text-gray-400 py-1">{wd}</span>
           ))}
@@ -296,15 +297,15 @@ export function CalendarView({ tasks, onEditTask, onToggleComplete, selectedDate
                 }}
                 className={`relative rounded-xl p-1.5 border flex flex-col justify-between items-center text-center h-[46px] transition-all cursor-pointer ${
                   isSelected 
-                    ? 'bg-gray-900 border-gray-900 text-white shadow-2xs z-10' 
+                    ? 'bg-gray-900 border-gray-900 text-white shadow-2xs z-10 dark:bg-blue-500/20 dark:border-blue-500/30 dark:text-blue-300' 
                     : item.isToday 
-                      ? 'bg-blue-50 border-blue-200 text-blue-600' 
+                      ? 'bg-blue-50 border-blue-200 text-blue-600 dark:bg-blue-500/10 dark:border-blue-500/20 dark:text-blue-400' 
                       : item.isCurrentMonth
-                        ? 'bg-white text-gray-800 border-gray-100 hover:border-gray-250 hover:bg-gray-50/50'
-                        : 'bg-transparent text-gray-350 border-transparent hover:border-gray-105'
+                        ? 'bg-white text-gray-800 border-gray-100 hover:border-gray-250 hover:bg-gray-50/50 dark:bg-zinc-900 dark:text-gray-300 dark:border-zinc-800 dark:hover:bg-zinc-800'
+                        : 'bg-transparent text-gray-350 border-transparent hover:border-gray-105 dark:text-zinc-600 dark:hover:border-zinc-800'
                 }`}
               >
-                <span className={`text-[10.5px] font-black ${isSelected ? 'text-white' : 'text-gray-700'}`}>
+                <span className={`text-[10.5px] font-black ${isSelected ? 'text-white dark:text-blue-300' : 'text-gray-700 dark:text-gray-400'}`}>
                   {item.date.getDate()}
                 </span>
                 
@@ -342,25 +343,25 @@ export function CalendarView({ tasks, onEditTask, onToggleComplete, selectedDate
           {selectedDayTasks.length === 0 ? (
             <p className="text-[10px] text-gray-400 italic text-center py-2.5 font-bold">本日暂无安排，快去添加新日程吧</p>
           ) : (
-            <div className="space-y-1.5 max-h-[140px] overflow-y-auto pr-1 no-scrollbar">
+            <div className="space-y-1.5 pr-1">
               {selectedDayTasks.map(t => (
                 <div
                   id={`month-task-item-${t.id}`}
                   key={t.id}
                   onClick={() => onEditTask(t)}
-                  className={`p-2 rounded-xl text-[10px] font-bold border cursor-pointer transition-all hover:translate-x-0.5 hover:bg-gray-100 flex items-center justify-between gap-2 ${
+                  className={`p-2 rounded-xl text-[10px] font-bold border cursor-pointer transition-all hover:translate-x-0.5 flex items-center justify-between gap-2 ${
                     t.isCompleted
-                      ? 'bg-gray-100/60 border-gray-200 text-gray-450 line-through'
+                      ? 'bg-gray-100/60 border-gray-200 text-gray-450 line-through dark:bg-zinc-800/50 dark:border-zinc-800 dark:text-zinc-500'
                       : t.priority === 'HIGH'
-                        ? 'bg-rose-50 border-rose-100 text-gray-800'
-                        : 'bg-white border-gray-150/50 text-gray-850'
+                        ? 'bg-rose-50 border-rose-100 text-gray-800 dark:bg-rose-500/10 dark:border-rose-500/20 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-rose-500/20'
+                        : 'bg-white border-gray-150/50 text-gray-850 dark:bg-zinc-900 dark:border-zinc-800 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-zinc-800'
                   }`}
                 >
                   <div className="flex items-center gap-1.5 overflow-hidden">
                     <button 
                       onClick={(e) => { e.stopPropagation(); onToggleComplete && onToggleComplete(t.id); }}
                       className={`shrink-0 w-3.5 h-3.5 rounded-[4px] border flex items-center justify-center transition-all ${
-                        t.isCompleted ? 'bg-gray-400 border-gray-400' : t.priority === 'HIGH' ? 'bg-rose-50 border-rose-200' : 'bg-blue-50 border-blue-200'
+                        t.isCompleted ? 'bg-gray-400 border-gray-400 dark:bg-zinc-700 dark:border-zinc-700' : t.priority === 'HIGH' ? 'bg-rose-50 border-rose-200 dark:bg-rose-500/10 dark:border-rose-500/30' : 'bg-blue-50 border-blue-200 dark:bg-blue-500/10 dark:border-blue-500/30'
                       }`}
                     >
                       {t.isCompleted ? <CheckSquare size={10} className="text-white" /> : <div className={`w-1.5 h-1.5 rounded-full ${t.priority === 'HIGH' ? 'bg-rose-500' : 'bg-blue-500'}`} />}
@@ -368,10 +369,10 @@ export function CalendarView({ tasks, onEditTask, onToggleComplete, selectedDate
                     <span className="truncate leading-tight">{t.title}</span>
                   </div>
                   <div className="flex items-center gap-2 shrink-0">
-                    <span className="text-[8px] font-black border border-gray-350/20 px-1 py-0.2 rounded bg-gray-50/80 text-gray-400 font-mono">
+                    <span className="text-[8px] font-black border border-gray-350/20 px-1 py-0.2 rounded bg-gray-50/80 text-gray-400 font-mono dark:bg-zinc-800 dark:text-zinc-400 dark:border-zinc-700">
                       Q{t.quadrant}
                     </span>
-                    <span className="text-[8.5px] font-bold text-gray-400">
+                    <span className="text-[8.5px] font-bold text-gray-400 dark:text-zinc-500">
                       {t.priority === 'HIGH' ? '高' : '低'}
                     </span>
                   </div>
@@ -399,28 +400,28 @@ export function CalendarView({ tasks, onEditTask, onToggleComplete, selectedDate
     });
 
     return (
-      <div id="calendar-year-flow" className="flex flex-col bg-white rounded-3xl p-3 border border-gray-100/50">
+      <div id="calendar-year-flow" className="flex flex-col">
         <div className="flex items-center gap-1.5 mb-2.5">
           <Sparkles size={11} className="text-amber-500 shrink-0" />
-          <h4 className="text-[10px] font-extrabold text-gray-700 font-sans">年度待办与专注力热力分布走势</h4>
+          <h4 className="text-[10px] font-extrabold text-gray-700 dark:text-gray-300 font-sans">年度待办与专注力热力分布走势</h4>
         </div>
         
         <div className="grid grid-cols-2 gap-2 flex-1">
           {monthsData.map((mon, i) => {
             // Calculate color density based on completes
-            let densityColor = 'bg-gray-100 text-gray-400';
-            if (mon.completed > 0 && mon.completed <= 2) densityColor = 'bg-blue-50 text-blue-700 border border-blue-105';
-            else if (mon.completed > 2 && mon.completed <= 5) densityColor = 'bg-blue-150 text-blue-900 border border-blue-200';
-            else if (mon.completed > 5) densityColor = 'bg-emerald-500 text-white shadow-2xs font-extrabold border border-emerald-600';
+            let densityColor = 'bg-gray-100 text-gray-400 dark:bg-zinc-800 dark:text-zinc-500 border-transparent';
+            if (mon.completed > 0 && mon.completed <= 2) densityColor = 'bg-blue-50 text-blue-700 border border-blue-105 dark:bg-blue-500/10 dark:text-blue-400 dark:border-blue-500/20';
+            else if (mon.completed > 2 && mon.completed <= 5) densityColor = 'bg-blue-150 text-blue-900 border border-blue-200 dark:bg-blue-500/20 dark:text-blue-300 dark:border-blue-500/30';
+            else if (mon.completed > 5) densityColor = 'bg-emerald-500 text-white shadow-2xs font-extrabold border border-emerald-600 dark:bg-emerald-600 dark:border-emerald-700';
 
             return (
               <div 
                 id={`year-month-tile-${i}`}
                 key={i} 
-                className="flex flex-col justify-between p-2.5 rounded-xl border border-gray-100 bg-gray-50/50 hover:bg-white transition-all text-left"
+                className="flex flex-col justify-between p-2.5 rounded-xl border border-gray-100 bg-gray-50/50 hover:bg-white dark:border-zinc-800 dark:bg-zinc-900/50 dark:hover:bg-zinc-800 transition-all text-left"
               >
                 <div className="flex justify-between items-center bg-transparent">
-                  <span className="text-[10px] font-black text-gray-750">{MONTHS_ZH[i]}</span>
+                  <span className="text-[10px] font-black text-gray-750 dark:text-gray-300">{MONTHS_ZH[i]}</span>
                   {mon.total > 0 && (
                     <span className="text-[8.5px] font-black text-emerald-600">
                       {Math.round((mon.completed / mon.total) * 100)}%
@@ -431,7 +432,7 @@ export function CalendarView({ tasks, onEditTask, onToggleComplete, selectedDate
                   <div className={`text-[8px] px-1.5 py-0.5 rounded-lg text-center font-bold ${densityColor}`}>
                     {mon.completed} 完
                   </div>
-                  <span className="text-[8.5px] font-bold text-gray-400 font-mono">总:{mon.total}</span>
+                  <span className="text-[8.5px] font-bold text-gray-400 dark:text-zinc-500 font-mono">总:{mon.total}</span>
                 </div>
               </div>
             );
@@ -442,7 +443,7 @@ export function CalendarView({ tasks, onEditTask, onToggleComplete, selectedDate
   };
 
   return (
-    <div id="calendar-view-container" className="space-y-3.5 h-full flex flex-col">
+    <div id="calendar-view-container" className="h-full overflow-y-auto overflow-x-hidden no-scrollbar flex flex-col gap-3">
       {/* Refactored into a single header controls bar with a popup dropdown for dimension */}
       <div className="flex-none flex items-center justify-between bg-white dark:bg-zinc-900/60 p-2.5 rounded-[1.6rem] border border-gray-150/15 dark:border-zinc-800/40 shadow-3xs relative">
         <div className="flex items-center gap-1.5 relative bg-transparent">
@@ -537,7 +538,7 @@ export function CalendarView({ tasks, onEditTask, onToggleComplete, selectedDate
       </div>
 
       {/* Main Grid Render Area */}
-      <div id="calendar-view-content" className="flex-1 overflow-y-auto no-scrollbar pb-6">
+      <div id="calendar-view-content" className="flex-1">
         {currentLevel === 'DAY' && renderDayView()}
         {currentLevel === 'WEEK' && renderWeekView()}
         {currentLevel === 'MONTH' && renderMonthView()}

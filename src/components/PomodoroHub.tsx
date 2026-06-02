@@ -180,7 +180,7 @@ export function PomodoroHub({
           <div className="grid grid-cols-1 md:grid-cols-12 gap-4">
             
             {/* Left Dial Panel */}
-            <div className="md:col-span-7 bg-white dark:bg-zinc-900/60 rounded-[2rem] p-5 shadow-2xs border border-gray-100 dark:border-zinc-800/50 flex flex-col items-center justify-between text-center min-h-[350px]">
+            <div className="md:col-span-7 bg-white dark:bg-zinc-900/60 rounded-[2rem] p-5 shadow-2xs border border-gray-100 dark:border-zinc-800/50 flex flex-col items-center justify-between text-center min-h-[350px] transform-gpu backface-hidden">
               <div>
                 <span className="text-[10px] font-black tracking-wider text-rose-500 uppercase block mb-1">
                   {isRunning ? `${focusMode === 'STOPWATCH' ? '沙漏正向计时' : focusMode === 'POMODORO' ? '番茄' : '倒计时'} 专注中` : '极简沙漏番茄时钟'}
@@ -362,7 +362,7 @@ export function PomodoroHub({
             </div>
 
             {/* Right White Noise Panel */}
-            <div className="md:col-span-5 bg-white dark:bg-zinc-900/60 rounded-[2rem] p-5 shadow-2xs border border-gray-100 dark:border-zinc-800/50 flex flex-col justify-between min-h-[350px]">
+            <div className="md:col-span-5 bg-white dark:bg-zinc-900/60 rounded-[2rem] p-5 shadow-2xs border border-gray-100 dark:border-zinc-800/50 flex flex-col justify-between min-h-[350px] transform-gpu backface-hidden relative z-10 overflow-hidden">
               <div>
                 <span className="text-[10px] font-black tracking-wider text-rose-500 uppercase block mb-1">
                   专注白噪音 Ambient Audio

@@ -6,6 +6,7 @@
 import React, { useState, useEffect } from 'react';
 import { Task, Priority, Quadrant, SubTask } from '../types';
 import { X, Plus, Trash2, Tag, Calendar, AlertTriangle, ChevronRight, Bookmark } from 'lucide-react';
+import { getLocalISODate } from '../utils/date';
 
 interface TaskDrawerProps {
   isOpen: boolean;
@@ -40,7 +41,7 @@ export function TaskDrawer({ isOpen, onClose, task, allTasks, onSave, onSaveAsTe
       setPriority(task.priority);
       setQuadrant(task.quadrant);
       setTags([...task.tags]);
-      setDueDate(task.dueDate || new Date().toISOString().split('T')[0]);
+      setDueDate(task.dueDate || getLocalISODate());
       setSubtasks([...task.subtasks]);
       setDependencies([...task.dependencies]);
     } else {
@@ -49,7 +50,7 @@ export function TaskDrawer({ isOpen, onClose, task, allTasks, onSave, onSaveAsTe
       setPriority('MEDIUM');
       setQuadrant(2);
       setTags(['工作']);
-      setDueDate(new Date().toISOString().split('T')[0]);
+      setDueDate(getLocalISODate());
       setSubtasks([]);
       setDependencies([]);
     }

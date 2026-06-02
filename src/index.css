@@ -1,5 +1,6 @@
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap');
 @import "tailwindcss";
+@custom-variant dark (&:where(.dark, .dark *));
 
 @theme {
   --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
@@ -46,8 +47,8 @@ body {
 .dark .bg-\[\#EDEFF2\]\/80,
 .dark .bg-white\/70,
 .dark .bg-white\/60,
-.dark .bg-[#EDEFF2],
-.dark .bg-[#EDEFF2]/80 {
+.dark .bg-\[\#EDEFF2\],
+.dark .bg-\[\#EDEFF2\]\/80 {
   background-color: #121214 !important;
 }
 
