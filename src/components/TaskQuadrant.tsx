@@ -5,7 +5,7 @@
 
 import React from 'react';
 import { Task, Quadrant, Priority, QuadrantCategory } from '../types';
-import { Plus, CheckCircle, Circle, Flame, CalendarClock, ShieldAlert, Coffee, ArrowUpRight } from 'lucide-react';
+import { Plus, CheckCircle, Circle, Flame, CalendarClock, ShieldAlert, Coffee, ArrowUpRight, GripVertical } from 'lucide-react';
 
 interface TaskQuadrantProps {
   tasks: Task[];
@@ -153,53 +153,75 @@ export function TaskQuadrant({
                           setActiveDragId(null);
                           setActiveDragOverQuad(null);
                         }}
-                        onTouchStart={(e) => {
-                          const touch = e.touches[0];
-                          setTouchActiveId(t.id);
-                          setTouchPos({ x: touch.clientX, y: touch.clientY });
-                        }}
-                        onTouchMove={(e) => {
-                          if (touchActiveId !== t.id) return;
-                          const touch = e.touches[0];
-                          setTouchPos({ x: touch.clientX, y: touch.clientY });
-
-                          // Find element under touch position
-                          const elem = document.elementFromPoint(touch.clientX, touch.clientY);
-                          if (elem) {
-                            let parent: HTMLElement | null = elem as HTMLElement;
-                            let targetQ: Quadrant | null = null;
-                            while (parent) {
-                              if (parent.id && parent.id.startsWith('quad-card-')) {
-                                const qId = parseInt(parent.id.replace('quad-card-', ''), 10) as Quadrant;
-                                if ([1, 2, 3, 4].includes(qId)) {
-                                  targetQ = qId;
-                                  break;
-                                }
-                              }
-                              parent = parent.parentElement;
-                            }
-                            if (targetQ !== null) {
-                              setActiveDragOverQuad(targetQ);
-                            } else {
-                              setActiveDragOverQuad(null);
-                            }
-                          }
-                        }}
-                        onTouchEnd={(e) => {
-                          if (touchActiveId !== t.id) return;
-                          if (activeDragOverQuad !== null) {
-                            onUpdateTaskQuadrant(t.id, activeDragOverQuad);
-                          }
-                          setTouchActiveId(null);
+                        onTouchEnd={() => {
+                          setActiveDragId(null);
                           setActiveDragOverQuad(null);
                         }}
-                        className={`group/item flex flex-col bg-white/95 dark:bg-zinc-800/40 hover:bg-white dark:hover:bg-zinc-800/80 p-2 rounded-xl border border-gray-150/30 dark:border-zinc-805 shadow-2xs transition-all duration-200 cursor-grab active:cursor-grabbing hover:shadow-xs active:scale-[0.98] select-none touch-none ${
+                        onTouchCancel={() => {
+                          setActiveDragId(null);
+                          setActiveDragOverQuad(null);
+                        }}
+                        className={`group/item flex flex-col bg-white/95 dark:bg-zinc-800/40 hover:bg-white dark:hover:bg-zinc-800/80 p-2 rounded-xl border border-gray-150/30 dark:border-zinc-805 shadow-2xs transition-all duration-200 cursor-grab active:cursor-grabbing hover:shadow-xs active:scale-[0.98] select-none ${
                           isBeingDragged ? 'opacity-35 border-dashed border-blue-400 scale-[0.96] dark:border-blue-500' : ''
                         }`}
                         onClick={() => onEditTask(t)}
                       >
                         <div className="flex items-center justify-between gap-1">
-                          <div className="flex items-center space-x-1.5 flex-1 min-w-0">
+                          <div className="flex items-center space-x-1 flex-1 min-w-0">
+                            {/* Drag Handle for Mobile */}
+                            <div 
+                              className="touch-none cursor-grab active:cursor-grabbing text-gray-300 dark:text-zinc-600 hover:text-gray-500 py-2 px-1 -ml-1 flex-shrink-0 sm:hidden"
+                              onTouchStart={(e) => {
+                                e.stopPropagation();
+                                const touch = e.touches[0];
+                                setTouchActiveId(t.id);
+                                setTouchPos({ x: touch.clientX, y: touch.clientY });
+                              }}
+                              onTouchMove={(e) => {
+                                if (touchActiveId !== t.id) return;
+                                const touch = e.touches[0];
+                                setTouchPos({ x: touch.clientX, y: touch.clientY });
+
+                                // Find element under touch position
+                                const elem = document.elementFromPoint(touch.clientX, touch.clientY);
+                                if (elem) {
+                                  let parent: HTMLElement | null = elem as HTMLElement;
+                                  let targetQ: Quadrant | null = null;
+                                  while (parent) {
+                                    if (parent.id && parent.id.startsWith('quad-card-')) {
+                                      const qId = parseInt(parent.id.replace('quad-card-', ''), 10) as Quadrant;
+                                      if ([1, 2, 3, 4].includes(qId)) {
+                                        targetQ = qId;
+                                        break;
+                                      }
+                                    }
+                                    parent = parent.parentElement;
+                                  }
+                                  if (targetQ !== null) {
+                                    setActiveDragOverQuad(targetQ);
+                                  } else {
+                                    setActiveDragOverQuad(null);
+                                  }
+                                }
+                              }}
+                              onTouchEnd={(e) => {
+                                e.stopPropagation();
+                                if (touchActiveId !== t.id) return;
+                                if (activeDragOverQuad !== null) {
+                                  onUpdateTaskQuadrant(t.id, activeDragOverQuad);
+                                }
+                                setTouchActiveId(null);
+                                setActiveDragOverQuad(null);
+                              }}
+                              onTouchCancel={(e) => {
+                                e.stopPropagation();
+                                setTouchActiveId(null);
+                                setActiveDragOverQuad(null);
+                              }}
+                            >
+                              <GripVertical size={14} />
+                            </div>
+                            
                             {/* Checkbox */}
                             <button
                               id={`btn-quad-toggle-${t.id}`}
@@ -233,7 +255,7 @@ export function TaskQuadrant({
 
                         {/* Display subtasks inline */}
                         {t.subtasks && t.subtasks.length > 0 && (
-                          <div className="mt-1.5 pt-1.5 border-t border-gray-100/65 dark:border-zinc-700/60 space-y-1">
+                          <div className="mt-0.5 pt-0.5 border-t border-gray-100/65 dark:border-zinc-700/60 space-y-0.5">
                             {!t.isSubtasksCollapsed ? (
                               t.subtasks.map(sub => (
                                 <div

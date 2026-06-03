@@ -168,10 +168,12 @@ export function CalendarView({ tasks, onEditTask, onToggleComplete, selectedDate
                     </button>
                     <span className={`text-xs font-bold truncate ${t.isCompleted && 'line-through opacity-60'}`}>{t.title}</span>
                   </div>
-                  <span className={`shrink-0 text-[9px] px-1.5 py-0.2 rounded-sm uppercase font-black ${
-                    t.priority === 'HIGH' ? 'bg-rose-100 text-rose-700 dark:bg-rose-500/20 dark:text-rose-400' : 'bg-gray-100 text-gray-500 dark:bg-zinc-800 dark:text-gray-400'
+                  <span className={`shrink-0 text-[9px] px-1.5 py-0.2 rounded-sm font-black ${
+                    t.priority === 'HIGH' ? 'bg-rose-100 text-rose-700 dark:bg-rose-500/20 dark:text-rose-400' : 
+                    t.priority === 'MEDIUM' ? 'bg-amber-100 text-amber-700 dark:bg-amber-500/20 dark:text-amber-400' :
+                    'bg-gray-100 text-gray-500 dark:bg-zinc-800 dark:text-gray-400'
                   }`}>
-                    {t.priority}
+                    {t.priority === 'HIGH' ? '高' : t.priority === 'MEDIUM' ? '中' : '低'}
                   </span>
                 </div>
                 <div className="flex items-center space-x-2 mt-1.5 text-[10px] text-gray-400 dark:text-zinc-500">
